@@ -1,0 +1,318 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Desvio error finding</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Space+Grotesk:wght@500;600&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+  /* Layout: one reading column; the mechanism as a top-to-bottom flow, results and limits below it. */
+  :root {
+    --bg: #f4f5f7;
+    --surface: #ffffff;
+    --fg: #18202b;
+    --muted: #586374;
+    --line: #c6cdd7;
+    --rule: #2d5c8a;
+    --rule-soft: #e5edf6;
+    --model: #9a5b0e;
+    --model-soft: #f6ecde;
+    --font-display: "Space Grotesk", "Segoe UI", system-ui, sans-serif;
+    --font-body: "Inter", "Segoe UI", system-ui, sans-serif;
+    --font-data: "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #10151c; --surface: #18202a; --fg: #e5e9ef; --muted: #9ba6b5; --line: #3a4553;
+      --rule: #82b3e3; --rule-soft: #1b2a3a; --model: #e3a85c; --model-soft: #2d2418;
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #10151c; --surface: #18202a; --fg: #e5e9ef; --muted: #9ba6b5; --line: #3a4553;
+    --rule: #82b3e3; --rule-soft: #1b2a3a; --model: #e3a85c; --model-soft: #2d2418;
+    color-scheme: dark;
+  }
+  body {
+    background: var(--bg);
+    color: var(--fg);
+    font-family: var(--font-body);
+    font-size: 15px;
+    line-height: 1.55;
+  }
+  .page {
+    max-width: 860px;
+    margin: 0 auto;
+    padding-block: 32px 56px;
+    padding-left: max(16px, env(safe-area-inset-left, 0px));
+    padding-right: max(16px, env(safe-area-inset-right, 0px));
+    display: grid;
+    gap: 28px;
+  }
+  header { display: grid; gap: 8px; }
+  .eyebrow {
+    font-family: var(--font-data);
+    font-size: 12px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+  h1, h2 { font-family: var(--font-display); text-wrap: balance; margin: 0; }
+  h1 { font-size: 32px; line-height: 1.15; font-weight: 600; }
+  h2 { font-size: 20px; font-weight: 600; }
+  p { margin: 0; max-width: 65ch; }
+  .lede { color: var(--muted); font-size: 16px; }
+  section { display: grid; gap: 12px; min-width: 0; }
+  figure { margin: 0; display: grid; gap: 10px; }
+  .diagram {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 12px;
+    overflow-x: auto;
+  }
+  .diagram svg { display: block; width: 100%; min-width: 600px; height: auto; color: var(--fg); }
+  figcaption { color: var(--muted); font-size: 13.5px; max-width: 70ch; }
+  .key { display: flex; flex-wrap: wrap; gap: 8px 18px; font-size: 13px; color: var(--muted); }
+  .key span { display: inline-flex; align-items: center; gap: 6px; }
+  .swatch { width: 14px; height: 10px; border-radius: 2px; border: 1.5px solid; }
+  .swatch.rule { border-color: var(--rule); background: var(--rule-soft); }
+  .swatch.model { border-color: var(--model); background: var(--model-soft); }
+  .swatch.dash { border: none; border-top: 2px dashed var(--muted); height: 0; border-radius: 0; }
+
+  /* SVG parts, styled from the page so both themes apply */
+  .box { fill: var(--surface); stroke: var(--line); stroke-width: 1.2; }
+  .box-rule { fill: var(--rule-soft); stroke: var(--rule); stroke-width: 1.5; }
+  .box-model { fill: var(--model-soft); stroke: var(--model); stroke-width: 1.5; }
+  .layer { fill: var(--surface); stroke: var(--model); stroke-width: 1; }
+  .t { fill: var(--fg); font-family: var(--font-display); font-size: 14px; font-weight: 600; }
+  .s { fill: var(--muted); font-family: var(--font-body); font-size: 11.5px; }
+  .n { fill: var(--fg); font-family: var(--font-body); font-size: 12px; }
+  .lbl { fill: var(--muted); font-family: var(--font-body); font-size: 11.5px; font-style: italic; }
+  .num { fill: var(--fg); font-family: var(--font-data); font-size: 12px; font-weight: 500; }
+  .flow { fill: none; stroke: currentColor; stroke-width: 1.4; }
+  .flow-model { fill: none; stroke: var(--model); stroke-width: 1.6; }
+  .flow-rule { fill: none; stroke: var(--rule); stroke-width: 1.6; }
+  .dash { fill: none; stroke: var(--muted); stroke-width: 1.4; stroke-dasharray: 5 4; }
+  .head { fill: currentColor; }
+  .head-model { fill: var(--model); }
+  .head-rule { fill: var(--rule); }
+  .head-muted { fill: var(--muted); }
+
+  .table-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); }
+  table { border-collapse: collapse; width: 100%; min-width: 560px; font-size: 14px; }
+  th, td { text-align: left; padding: 9px 12px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { font-weight: 600; font-size: 13px; color: var(--muted); }
+  tr:last-child td { border-bottom: none; }
+  td.num-cell { font-family: var(--font-data); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .pending { color: var(--model); font-weight: 500; }
+  ul { margin: 0; padding-left: 20px; display: grid; gap: 6px; max-width: 70ch; }
+</style>
+</head>
+<body>
+<main class="page">
+  <header>
+    <div class="eyebrow">Bill of quantities review · 22 Nov 2026</div>
+    <h1>How Desvio finds errors in a bill</h1>
+    <p class="lede">The app's own checks find what rules can prove and rank the rest by how reliable each rule is. The language model reads the whole bill three times, each time for one family of issues, and only what it calls certain goes on the list.</p>
+  </header>
+
+  <section>
+    <figure>
+      <div class="diagram">
+        <svg viewBox="0 0 760 910" role="img" aria-label="Flow of error finding: the bill is read, then checked by the app's rules and read whole by the language model in three focused passes. Proven check findings come first on the reading list, then check findings of reliable rules, then the model's certain claims. Findings of weak rules and uncertain claims go to a separate worth-a-look list.">
+          <defs>
+            <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+              <path d="M0,0 L10,5 L0,10 z" class="head"/>
+            </marker>
+            <marker id="arrow-model" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+              <path d="M0,0 L10,5 L0,10 z" class="head-model"/>
+            </marker>
+            <marker id="arrow-rule" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+              <path d="M0,0 L10,5 L0,10 z" class="head-rule"/>
+            </marker>
+            <marker id="arrow-muted" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+              <path d="M0,0 L10,5 L0,10 z" class="head-muted"/>
+            </marker>
+          </defs>
+
+          <!-- input -->
+          <rect class="box" x="280" y="12" width="200" height="52" rx="8"/>
+          <text class="t" x="380" y="34" text-anchor="middle">Bill file</text>
+          <text class="s" x="380" y="52" text-anchor="middle">GAEB, Excel or CSV</text>
+          <line class="flow" x1="380" y1="64" x2="380" y2="92" marker-end="url(#arrow)"/>
+
+          <rect class="box" x="220" y="94" width="320" height="56" rx="8"/>
+          <text class="t" x="380" y="117" text-anchor="middle">Read the bill</text>
+          <text class="s" x="380" y="136" text-anchor="middle">Titel, positions, notes and sums</text>
+
+          <polyline class="flow" points="380,150 380,170 177,170 177,192" marker-end="url(#arrow)"/>
+          <polyline class="flow" points="380,170 582,170 582,192" marker-end="url(#arrow)"/>
+
+          <!-- left lane: the app's checks -->
+          <rect class="box-rule" x="20" y="194" width="315" height="128" rx="8"/>
+          <text class="t" x="36" y="218">The app's own checks</text>
+          <text class="n" x="36" y="242">36 registered rule and domain checks:</text>
+          <text class="s" x="36" y="262">sums, line totals, missing values,</text>
+          <text class="s" x="36" y="280">units, duplicates, wording,</text>
+          <text class="s" x="36" y="298">required details, bid prices</text>
+
+          <line class="flow-rule" x1="97" y1="322" x2="97" y2="350" marker-end="url(#arrow-rule)"/>
+          <line class="flow-rule" x1="257" y1="322" x2="257" y2="350" marker-end="url(#arrow-rule)"/>
+
+          <rect class="box-rule" x="20" y="352" width="155" height="80" rx="8"/>
+          <text class="t" x="36" y="375">Proven</text>
+          <text class="s" x="36" y="395">wrong sum or total,</text>
+          <text class="s" x="36" y="411">missing value,</text>
+          <text class="s" x="36" y="425">exact duplicate</text>
+
+          <rect class="box-rule" x="180" y="352" width="155" height="80" rx="8"/>
+          <text class="t" x="196" y="375">Soft</text>
+          <text class="s" x="196" y="395">hints, not proven:</text>
+          <text class="s" x="196" y="411">wording, assumptions,</text>
+          <text class="s" x="196" y="425">odd prices, units</text>
+
+          <line class="flow-rule" x1="257" y1="432" x2="257" y2="468" marker-end="url(#arrow-rule)"/>
+          <rect class="box-rule" x="130" y="470" width="205" height="96" rx="8"/>
+          <text class="t" x="146" y="493">Rule reliability</text>
+          <text class="s" x="146" y="513">how often was this rule right</text>
+          <text class="s" x="146" y="530">on bills with known faults?</text>
+          <text class="s" x="146" y="547">under 1 in 7: off the list</text>
+
+          <!-- the checks' findings go into the prompt -->
+          <polyline class="dash" points="335,300 423,300" marker-end="url(#arrow-muted)"/>
+          <text class="lbl" x="379" y="292" text-anchor="middle">findings</text>
+          <text class="lbl" x="379" y="316" text-anchor="middle">in prompt</text>
+
+          <!-- right lane: the model reads the whole bill -->
+          <rect class="box" x="425" y="194" width="315" height="56" rx="8"/>
+          <text class="t" x="441" y="217">The whole bill in one request</text>
+          <text class="s" x="441" y="237">not split by section, nothing cut</text>
+          <line class="flow-model" x1="582" y1="250" x2="582" y2="270" marker-end="url(#arrow-model)"/>
+
+          <rect class="box-model" x="425" y="272" width="315" height="176" rx="8"/>
+          <text class="t" x="441" y="295">Three focused passes</text>
+          <text class="s" x="441" y="313">numbers, price basis, text</text>
+          <rect class="layer" x="441" y="324" width="283" height="32" rx="5"/>
+          <text class="num" x="453" y="344">1</text>
+          <text class="n" x="469" y="344">Context: role and issue types</text>
+          <rect class="layer" x="441" y="362" width="283" height="32" rx="5"/>
+          <text class="num" x="453" y="382">2</text>
+          <text class="n" x="469" y="382">The whole bill, with check findings</text>
+          <rect class="layer" x="441" y="400" width="283" height="32" rx="5"/>
+          <text class="num" x="453" y="420">3</text>
+          <text class="n" x="469" y="420">Question: one issue family, JSON</text>
+
+          <line class="flow-model" x1="582" y1="448" x2="582" y2="468" marker-end="url(#arrow-model)"/>
+          <rect class="box" x="425" y="470" width="315" height="56" rx="8"/>
+          <text class="t" x="441" y="493">Check every answer</text>
+          <text class="s" x="441" y="513">position exists, type listed, quote found</text>
+
+          <line class="flow-model" x1="582" y1="526" x2="582" y2="546" marker-end="url(#arrow-model)"/>
+          <rect class="box-model" x="425" y="548" width="315" height="56" rx="8"/>
+          <text class="t" x="441" y="571">Keep only certain claims</text>
+          <text class="s" x="441" y="591">the model rates each claim; high stays</text>
+
+          <!-- off the list: weak rules and uncertain claims -->
+          <polyline class="flow-rule" points="335,540 390,540 390,638" marker-end="url(#arrow-rule)"/>
+          <text class="lbl" x="383" y="592" text-anchor="end">weak</text>
+          <text class="lbl" x="383" y="607" text-anchor="end">rules</text>
+          <line class="flow-model" x1="500" y1="604" x2="500" y2="638" marker-end="url(#arrow-model)"/>
+          <text class="lbl" x="508" y="626">medium, low</text>
+
+          <rect class="box" x="350" y="640" width="210" height="72" rx="8"/>
+          <text class="t" x="366" y="663">Worth a look</text>
+          <text class="s" x="366" y="683">a separate list, not ranked:</text>
+          <text class="s" x="366" y="699">weak rules, uncertain claims</text>
+
+          <!-- onto the reading list -->
+          <line class="flow-rule" x1="97" y1="432" x2="97" y2="748" marker-end="url(#arrow-rule)"/>
+          <text class="lbl" x="105" y="620">proven</text>
+          <line class="flow-rule" x1="300" y1="566" x2="300" y2="748" marker-end="url(#arrow-rule)"/>
+          <text class="lbl" x="292" y="620" text-anchor="end">reliable rules</text>
+          <line class="flow-model" x1="650" y1="604" x2="650" y2="748" marker-end="url(#arrow-model)"/>
+          <text class="lbl" x="658" y="680">certain</text>
+
+          <!-- the reading list -->
+          <rect class="box" x="20" y="750" width="720" height="140" rx="10"/>
+          <text class="t" x="380" y="776" text-anchor="middle">Reading list for the Korrektor, in this order</text>
+          <line x1="260" y1="790" x2="260" y2="876" stroke="var(--line)"/>
+          <line x1="500" y1="790" x2="500" y2="876" stroke="var(--line)"/>
+
+          <text class="num" x="36" y="814">1</text>
+          <text class="t" x="52" y="814">Proven</text>
+          <text class="s" x="36" y="836">a check proves it</text>
+          <text class="s" x="36" y="854">(sums, totals, values)</text>
+
+          <text class="num" x="276" y="814">2</text>
+          <text class="t" x="292" y="814">Reliable check findings</text>
+          <text class="s" x="276" y="836">ordered by how often their</text>
+          <text class="s" x="276" y="854">rule was right elsewhere</text>
+
+          <text class="num" x="516" y="814">3</text>
+          <text class="t" x="532" y="814">Certain model claims</text>
+          <text class="s" x="516" y="836">what the model calls certain,</text>
+          <text class="s" x="516" y="854">with a quote from the bill</text>
+        </svg>
+      </div>
+      <figcaption>Two independent readers look at the same bill. Rules prove arithmetic and form; the model judges meaning in context. There is no judge in this flow: in the fresh run a second model request rejected 27 real faults the checks had found. Each item on the list keeps its position, rows, reason and quote, and who found it.</figcaption>
+      <div class="key">
+        <span><span class="swatch rule"></span>The app's rule checks</span>
+        <span><span class="swatch model"></span>The language model (Claude Haiku 5.5)</span>
+        <span><span class="swatch dash"></span>Information passed on, not a finding</span>
+      </div>
+    </figure>
+  </section>
+
+  <section>
+    <h2>What each step is for</h2>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Step</th><th>What it does</th><th>Why</th></tr></thead>
+        <tbody>
+          <tr><td>App's checks</td><td>Every registered check runs on the bill. A wrong sum or line total, a missing value or an exact duplicate is proven by arithmetic. Other findings are hints: wording, assumptions, odd prices, units.</td><td>Certain and free; the model's own arithmetic is unreliable.</td></tr>
+          <tr><td>Rule reliability</td><td>For each rule, the share of its findings that were real faults is measured on bills with known faults. Findings are ordered by it, and rules right less than 1 time in 7 move to "Worth a look".</td><td>This plain ranking beat the judge in the fresh run, 0.779 against 0.748. Below 1 in 7, one more entry lowers the score.</td></tr>
+          <tr><td>Whole bill</td><td>The model gets the whole bill in one request, with the checks' findings under their positions.</td><td>Against the split by section it made half as many claims at a higher hit rate, for about half the cost.</td></tr>
+          <tr><td>Three passes</td><td>Each pass asks about one family of issues: numbers, price basis, text.</td><td>Only these three found faults nothing else found. Missing work, risk wording and duplicates added false alarms and no faults on the practice bills.</td></tr>
+          <tr><td>Answer checks</td><td>A suspected issue must name a position of the bill, a listed issue type, and quote that position.</td><td>Removes invented positions and quotes before anyone sees them.</td></tr>
+          <tr><td>Certainty</td><td>The model rates each claim as high, medium or low. Only high stays on the list.</td><td>High was right 55&nbsp;% of the time, medium 10&nbsp;% and low 15&nbsp;%.</td></tr>
+          <tr><td>Worth a look</td><td>Findings of weak rules and the model's uncertain claims, kept apart and not ranked.</td><td>Nothing is thrown away. The Korrektor can open it when there is time.</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section>
+    <h2>Results</h2>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>P1 practice benchmark, fresh runs on 21 Nov</th><th>F2 at 50</th><th>Strict score</th><th>Faults in the first 50</th><th>Entries per bill</th></tr></thead>
+        <tbody>
+          <tr><td>App's checks on main, before today</td><td class="num-cell">0.550</td><td class="num-cell">0.468</td><td class="num-cell">108 of 176</td><td class="num-cell">&ndash;</td></tr>
+          <tr><td>App's checks with the three new rules</td><td class="num-cell">0.671</td><td class="num-cell">0.595</td><td class="num-cell">133 of 176</td><td class="num-cell">46</td></tr>
+          <tr><td>Old design: split by section, six passes</td><td class="num-cell">0.712</td><td class="num-cell">0.612</td><td class="num-cell">149 of 176</td><td class="num-cell">147</td></tr>
+          <tr><td>Whole bill, six passes</td><td class="num-cell">0.721</td><td class="num-cell">0.636</td><td class="num-cell">149 of 176</td><td class="num-cell">98</td></tr>
+          <tr><td>Three passes, certain claims, with a judge</td><td class="num-cell">0.748</td><td class="num-cell">0.705</td><td class="num-cell">140 of 176</td><td class="num-cell">31</td></tr>
+          <tr><td><strong>This design: three passes, certain claims, rule reliability</strong></td><td class="num-cell"><strong>0.779</strong></td><td class="num-cell"><strong>0.721</strong></td><td class="num-cell"><strong>147 of 176</strong></td><td class="num-cell"><strong>32</strong></td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p>The strict score ignores a hit when the same check also flags that row in the clean original. No answers from an earlier run were reused and no prompt knows an answer key. The last run cost 0.74&nbsp;USD for 12 bills with the judge; without it the estimate is about 0.35&nbsp;USD.</p>
+    <p>The judge was measured and left out. When it confirmed a check finding, 59&nbsp;% were real faults, but 18&nbsp;% of what it rejected were real too, which cost 27 faults. From the text alone it cannot recompute VAT or see why a price is odd. On the model's certain claims it confirmed 50 of 55, so it filtered nothing.</p>
+    <p><strong>Blind test.</strong> B8, the held-out benchmark (6 faulty bills, 123 planted faults), was run once on 22 Nov with this design unchanged and the rule order taken only from the practice bills. The reading list scored 0.582 against 0.513 for the checks alone (strict score 0.462 against 0.404), with 24 entries per bill instead of 38. The gain carries over, at 0.07 instead of 0.10, and at a lower level than on the practice set: 49 of the 123 blind faults are not on the list.</p>
+  </section>
+
+  <section>
+    <h2>Limits</h2>
+    <ul>
+      <li>The model's findings are suspicions for the Korrektor, never confirmed errors.</li>
+      <li>This design was one of three side lists of the fresh run and was named the best after the result was seen. P1 also helped design the new rules, so its numbers are optimistic. The blind test on B8 is the honest measure.</li>
+      <li>Rule reliability was learned on three of the four practice bills and tested on the fourth. On real bills it has to be measured again when bills with known faults exist.</li>
+      <li>The bill goes to Anthropic for the model steps. That is allowed for the test bills; a client's bill needs its own permission or a local model.</li>
+      <li>A finding counts as a hit when it names a fault's row, even if its reason differs.</li>
+    </ul>
+  </section>
+</main>
+</body>
+</html>

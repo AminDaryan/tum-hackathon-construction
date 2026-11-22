@@ -1,0 +1,39 @@
+# Budgeted discovery by the local language model (app.risk.discovery). Version 0.1 (2026-11-21).
+# Runs only when started (POST /api/v1/validation-runs/{run_id}/risks/discovery-runs) with a
+# local model configured; reading a report never starts it. TRIAL DEFAULTS, not tuned or
+# validated: chosen so that one bill costs at most a few minutes on a 7B model on a laptop.
+# Every run records the values it ran with.
+#
+# The model proposes hypotheses for a few selected positions; it decides nothing. Positions are
+# chosen by three paths, each with a share of max_candidates:
+#   known        positions of open questions the rules could not decide (cannot_tell), with
+#                conflicting evidence, or that depend on a document not provided;
+#   differences  positions with no comparable text in the bill, positions similar to another
+#                one but with differing words (conditions, limits, responsibilities), and
+#                positions a price comparison flagged; a rare or different text only orders
+#                this path, it is never a finding (novel is not risky);
+#   exploration  a seeded sample of the positions the other paths did not choose, spread over
+#                the bill's top-level sections (the whole bill when it has fewer than two), so
+#                positions no rule flagged are looked at too.
+# A path that finds fewer positions than its share passes the rest on (known -> differences ->
+# exploration); exploration always keeps at least its share. Strategy "sample" spends the same
+# budget on a seeded stratified sample only: the control to compare the paths with.
+version: "0.1"
+budget:
+  max_candidates: 24        # positions sent to the model at most, over all paths
+  items_per_call: 6         # positions in one request
+  max_item_chars: 900       # characters of one position's text; longer texts are cut (recorded)
+  max_context_chars: 1500   # notes and comparable positions shown with one request
+  max_prompt_chars: 9000    # one whole request; positions that do not fit go to the next one
+  max_output_tokens: 1200   # the longest answer of one request
+  max_calls: 4              # requests per bill; positions beyond are recorded as not sent
+  call_timeout_seconds: 120 # one request, never longer than the time left
+  total_seconds: 420        # all requests of one bill
+  min_call_seconds: 10      # no request is started with less time left
+split: {known: 0.40, differences: 0.35, exploration: 0.25}
+seed: 20261121
+similarity:
+  block_positions: 400      # positions compared with each other at most (n x n per block)
+  no_comparable_below: 0.30 # best similarity below this: no comparable position in the bill
+  similar_from: 0.60        # best similarity from this: compared for differing words
+  min_differing_words: 1

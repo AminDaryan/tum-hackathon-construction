@@ -1,0 +1,10 @@
+# Normalize line endings so Windows and Unix checkouts stay identical.
+* text=auto eol=lf
+*.xlsx binary
+*.xls binary
+*.pdf binary
+*.png binary
+*.jpg binary
+*.woff2 binary
+# The official GAEB schemas are pinned by SHA-256: keep their bytes exactly.
+*.xsd binary

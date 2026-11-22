@@ -1,0 +1,105 @@
+# Wording worth a second look (method 5). Version 0.8 (2026-11-21, local): every use of a
+# term is judged, not only the first; V05 also skips a place on the route ("bei ca. Station
+# 0+250") and a clearance ("ca. 3,5 - 4,0 m Abstand"). Version 0.7 (2026-11-21): the wording the tender
+# review checks of `main` report is left to them as well: V01 no longer reads "nach Absprache"
+# and counts the site management (Bauleitung, BL) and the architect as a named party, like
+# domain.boq_description_clarity (open_decision); V02 no longer reads "komplett",
+# "betriebsfertig", "u. dgl." and "usw." (catch_all_wording). Version 0.6 (2026-11-21, the
+# owner's decision "findings first, risk list second"): the wording the issue register checks is gone, so one
+# issue is listed once. V03 (a document without a number) is left to domain.boq_clauses
+# (document_reference); V05 no longer reads "nach Aufwand", "nach Erfordernis" and "nach
+# Bedarf" (domain.boq_clauses: open_lump_sum in a lump sum, vague_wording elsewhere); V08 reads
+# only alternative positions, since domain.boq_position_types lists every contingency position.
+# Their findings keep the risk types and questions (findings.yaml).
+# Version 0.5 (2026-11-21): V05 skips a technical
+# value of a product ("ca. 8 m3/h", "Gewicht: ca. 50 kg"). Version 0.4 (2026-11-21): version 0.3 with V06's
+# settling text tied to the quality word ("after") and numbered standards only. Version 0.3
+# (2026-11-20): the terms of version 0.2 with each group's `check` made concrete, so code can
+# apply it. The concrete checks are new and need review by a person.
+#
+# Every term is a CLUE, never a risk by itself. A group raises a risk only when its check
+# fails, and then as a semantic_warning with a clarification question.
+#
+#   fine_if        regular expressions; when one matches, the check passes.
+#   fine_if_scope  where they are searched: "near" (the `window` characters around the term),
+#                  "after" (the `window` characters after the term, in its clause),
+#                  "position" (the whole position), "position_and_notes" (also the notes of
+#                  its sections and the general notes).
+#   min_list_items the position passes when it lists at least this many parts
+#                  (separated by ";", " - " or bullets).
+#   raise_when_any the group raises only when one of these holds: `lump_sum: true`, or
+#                  `share_of_total_at_least` (the position's line total as a share of the
+#                  bill's counted total; needs prices).
+#   question       the clarification question; {term} and {positions} are filled in.
+version: "0.8"
+defaults:
+  window: 150
+groups:
+  - id: V01
+    risk_type: R036
+    meaning: responsibility may be open
+    terms: ["durch andere", "nach Angabe", "durch Dritte", "nach Wahl des AN", "nach Wahl des AG", "bauseits"]
+    check: "Is the responsible party named (client, a trade, a lot number)? If yes, fine."
+    fine_if: ['auftraggeber|bauherr|bauseit|\bdes\s(?:ag|an)\b|\bdurch\sden\s(?:ag|an|auftragnehmer)\b|\bgewerk\b|\blos\s?\d|\btitel\s?\d|\bpos(?:ition)?\.?\s?\d|\boz\s?\d|\bfirma\b|bauleitung|\bder\sbl\b|architekt']
+    fine_if_scope: near
+    question: "Who is responsible for the work described as '{term}' in {positions}, and is it part of this contract?"
+  - id: V02
+    risk_type: R037
+    meaning: inclusions may be undefined
+    terms: ["inkl. Zubehör", "einschl. Zubehör", "mit allem Zubehör", "funktionsfähig herstellen", "alle erforderlichen", "sämtliche erforderlichen", "und dgl."]
+    check: "Does the item list what the bundle contains, or point to a named specification? If yes, fine."
+    fine_if: ['\b(?:din|en|iso)\s?\d', 'fabrikat', '\btyp\b', 'datenblatt', 'bestehend\saus', 'wie\sfolgt', 'folgende\w{0,3}\s(?:leistungen|teile|bestandteile|komponenten)', 'leistungsumfang\s?:']
+    fine_if_scope: position
+    min_list_items: 3
+    question: "Which parts and services are included in '{term}' for {positions}? Please list them or name the specification."
+  - id: V04
+    risk_type: R031
+    meaning: equivalent product without a yardstick
+    terms: ["oder gleichwertig", "o. glw.", "o.glw.", "oder gleichwertiger Art"]
+    check: "'Or equivalent' is legitimate (VOB/A § 7 asks for it with product names). Fine when the item states the performance values that define equivalence; a clue only when none are given."
+    fine_if: ['\d+(?:[,.]\d+)?\s?(?:mm|cm|kn|n/mm|w/\(?m|db|bar|kg|l/s|m3/h|m³/h|kw|°c|kpa|mpa)\b', '\b(?:din|en|iso)\s?\d', '\bc\d{2}/\d{2}\b', '\bwl[sg]\s?\d', '\bdn\s?\d']
+    fine_if_scope: position
+    question: "Which performance values define 'equivalent' for {positions}?"
+  - id: V05
+    risk_type: R090
+    meaning: quantity explicitly uncertain
+    terms: ["ca.", "circa", "geschätzt"]
+    check: "Raise only when the item is large (top share of the estimated total) or a lump sum."
+    # A technical value of a product is no quantity basis (2026-11-21): a size, rate, pressure,
+    # power or temperature right after the term, or a property label right before it.
+    # Nor is a place on the route or a clearance to something (2026-11-21, dev review): a
+    # length that is the work ("Gesamtlänge ca. 420 m", "Messabstände ca. 5 - 6 m") is still asked.
+    # Each exception settles one use of a term; any other use in the position is judged too.
+    fine_if: ['\A\W{0,2}\d[\d.,]*\s*(?:mm|cm|bar|mbar|kw|kva|w|v|hz|°c|u/min|[a-z0-9³²µ]+/(?:h|s|min|d))(?![a-z0-9])',
+              '\A\W{0,2}(?:station|stat\.|km)\s*\d',
+              '\A\W{0,2}\d[\d.,]*(?:\s*(?:-|–|bis)\s*\d[\d.,]*)?\s*m\s+(?:abstand|entfernung)\b']
+    fine_if_scope: after
+    fine_if_before: ['(?:gewicht|masse|länge|breite|höhe|tiefe|durchmesser|abmessungen?|leistung)\s*:\s*\Z']
+    raise_when_any: [{lump_sum: true}, {share_of_total_at_least: "0.01"}]
+    question: "On which quantity basis is {positions} to be priced ('{term}'), and how will it be measured?"
+  - id: V06
+    risk_type: R032
+    meaning: quality without acceptance criteria
+    terms: ["hochwertig", "fachgerecht", "einwandfrei", "erstklassig", "Premium"]
+    check: "Is a numbered standard, a class or a tolerance tied to the quality word (after it, in its clause)? If yes, fine. A standard elsewhere in the item, even in the same sentence, belongs to other work ('Rohre nach DIN EN 12201 liefern und fachgerecht verlegen')."
+    fine_if: ['\b(?:din|en|iso|vde|dvgw|dwa|atv|dvwk|vdi)\b(?:[\s-]*(?:en|iso|iec|vde|dvwk|richtlinie|arbeitsblatt|merkblatt|blatt|teil|a|m|w|g|gw)\b\.?){0,3}[\s-]*\d{2,5}|\b(?:w|g|gw)\s?\d{3}\b', 'toleranz', 'ebenheit', 'qualitätsstufe', '\bq[1-4]\b', 'klasse\s?[a-z0-9]', 'güte', '\bc\d{2}/\d{2}\b', 'abfallschl', '\bavv\b', 'zuordnungs(?:klasse|wert)', 'deponieklasse']
+    fine_if_scope: after
+    question: "Which standard, class or tolerance defines '{term}' for {positions}?"
+  - id: V07
+    risk_type: R087
+    meaning: ground conditions assumed
+    terms: ["Boden aller Art", "Bodenklasse nach Wahl", "Fels ist gesondert"]
+    check: "Is a soil report or Homogenbereich referenced? If yes, fine."
+    fine_if: ['homogenbereich', 'baugrundgutachten', 'bodengutachten', 'geotechnisch', 'baugrunduntersuchung', 'bodenklasse\s?\d', '\bbk\s?\d', '\bhb\s?\d', 'bodengruppe']
+    fine_if_scope: position_and_notes
+    question: "Which soil report or Homogenbereich applies to {positions} ('{term}')?"
+    missing_sources: ["the soil report (Baugrundgutachten)"]
+  - id: V08
+    risk_type: R089
+    meaning: alternative item
+    # Contingency positions ("Bedarfsposition", "Eventualposition", "nur auf Anordnung"):
+    # domain.boq_position_types (contingency_and_hourly) lists all of them.
+    terms: ["Wahlposition", "Alternativposition"]
+    check: "Not a risk alone. Raise only with a large estimated value or when it is counted in the total wrongly (detector 1)."
+    raise_when_any: [{share_of_total_at_least: "0.01"}]
+    question: "Will the alternative position {positions} be ordered instead of the main position, and in which quantity should it be priced?"

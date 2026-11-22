@@ -1,0 +1,20 @@
+/** German for the app frame: navigation, language switch, fallback pages. */
+export const app = {
+  Primary: 'Hauptnavigation',
+  Language: 'Sprache',
+  'Skip to main content': 'Zum Hauptinhalt springen',
+  Projects: 'Projekte',
+  'More projects': 'Weitere Projekte',
+  'More users': 'Weitere Benutzer',
+  'Bill of quantities': 'Leistungsverzeichnis',
+  History: 'Verlauf',
+  '3D model': '3D-Modell',
+  Settings: 'Einstellungen',
+  'Page not found': 'Seite nicht gefunden',
+  'There is nothing at this address': 'Unter dieser Adresse gibt es nichts',
+  'No page matches {path}.': 'Keine Seite passt zu {path}.',
+  'This project does not exist.': 'Dieses Projekt gibt es nicht (mehr).',
+  'Go to workspace': 'Zum Arbeitsbereich',
+  'This view failed to render': 'Diese Ansicht konnte nicht angezeigt werden',
+  'Opening the 3D model…': '3D-Modell wird geöffnet …',
+};

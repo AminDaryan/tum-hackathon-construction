@@ -1,0 +1,37 @@
+# Conflicts inside one position: the short text states one value, the long text states only
+# other values of the same kind. Version 0.1 (2026-11-20, new; needs review by a person).
+#
+# One position describes one piece of work, so no component key is needed. The bill alone
+# cannot say which value is meant: a conflict is a semantic_warning with a question, never a
+# confirmed error. Values are compared as group 1 of the pattern, spaces removed.
+#
+# Version 0.3 (2026-11-21): `references` (C04), a text that names a position of this bill by
+# its code. A code no position read has is a confirmed broken reference (on the bill as read)
+# when the text places it in this bill ("interne LV-Position"), and a question when it says
+# nothing about where it
+# is (it may be in another lot; the detector deterministic.reference_integrity reads it so as
+# well). A reference near words of another document is not judged: only this bill was read.
+version: "0.3"
+rules:
+  - id: C01
+    risk_type: R049
+    attribute: pipe diameter
+    # "DN 800/900" lists two diameters (version 0.2, 2026-11-21: it was read as 800 only).
+    pattern: '\bdn\s?(\d{2,4}(?:\s?/\s?\d{2,4})*)\b'
+    separator: "/"
+  - id: C02
+    risk_type: R046
+    attribute: concrete strength class
+    pattern: '\bl?c\s?(\d{1,3}/\d{2,3})\b'
+  - id: C03
+    risk_type: R051
+    attribute: steel grade
+    pattern: '\bs\s?(235|275|355|420|460)\b'
+references:
+  - id: C04
+    risk_type: R041
+    # "nach interner LV-Position 99.9999", "siehe Pos. 01.0020", "wie OZ 3.1.20"
+    pattern: '\b(?:lv-?\s?)?(?:position|pos\.|pos|oz)\s*(\d{1,4}(?:\.\d{1,4}){1,4})\b'
+    internal: [intern, "dieses lv", "dieses leistungsverzeichnis", "lv-position", "lv position"]
+    # Word starts: "Anlage 3", "Zeichnungen", "Los 2" ("Plan" is left out: "Planum").
+    external: [los, anlage, anhang, statik, zeichnung, gutachten, vertrag, angebot, nachtrag, gewerk, katalog, hersteller]

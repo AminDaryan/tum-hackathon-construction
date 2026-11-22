@@ -1,0 +1,72 @@
+# Tabular Integrity Workbench with a data volume (SQLite in /data by default).
+#
+#   docker compose up --build -d          the application on http://localhost:8000
+#
+# Optional profiles:
+#   postgres  a PostgreSQL 16.16 server; point the application at it with TWB_DATABASE_URL:
+#     TWB_DATABASE_URL=postgresql+pg8000://twb:twb@postgres:5432/twb \
+#       docker compose --profile postgres up --build -d
+#   ollama    a local Ollama server for the LLM planner of a later phase. The application
+#             does not use it yet: nothing in this release connects to it.
+#
+# The port is published on the loopback interface only: authentication is off until
+# TWB_AUTH__TOKENS is set. Read docs/deployment.md before exposing the application.
+name: tabular-integrity-workbench
+
+services:
+  app:
+    build:
+      context: .
+      args:
+        EXTRAS: postgres  # the pg8000 driver, so switching to PostgreSQL needs no rebuild
+    image: tabular-integrity-workbench:local
+    ports:
+      - "127.0.0.1:8000:8000"
+    environment:
+      TWB_DATABASE_URL: ${TWB_DATABASE_URL:-}  # empty: SQLite in /data/workbench.sqlite3
+      TWB_AUTH__TOKENS: ${TWB_AUTH__TOKENS:-[]}  # e.g. '["<a long random token>"]'
+      TWB_LOGGING__FORMAT: ${TWB_LOGGING__FORMAT:-json}
+      TWB_LOGGING__LEVEL: ${TWB_LOGGING__LEVEL:-INFO}
+    volumes:
+      - twb-data:/data
+    # Shutdown waits for running background validations, which the run time limit
+    # (TWB_VALIDATION__MAX_RUN_SECONDS, 300 s by default) bounds; Docker's default of 10 s
+    # would kill them. Raise this together with that limit.
+    stop_grace_period: 330s
+    depends_on:
+      postgres:
+        condition: service_healthy
+        required: false  # only with --profile postgres
+    restart: unless-stopped
+
+  postgres:
+    profiles: ["postgres"]
+    image: postgres:16.16  # exact versions of the images: SYSTEM_REQUIREMENTS.md
+    environment:
+      POSTGRES_USER: twb
+      POSTGRES_PASSWORD: ${TWB_POSTGRES_PASSWORD:-twb}  # set your own outside a trial
+      POSTGRES_DB: twb
+    volumes:
+      - twb-postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U twb -d twb"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    restart: unless-stopped
+
+  ollama:
+    # Optional local language model server (TWB_LLM__PROVIDER=ollama, docs/deployment.md),
+    # pinned like the other images.
+    profiles: ["ollama"]
+    image: ollama/ollama:0.40.17
+    ports:
+      - "127.0.0.1:11434:11434"
+    volumes:
+      - twb-ollama:/root/.ollama
+    restart: unless-stopped
+
+volumes:
+  twb-data:
+  twb-postgres:
+  twb-ollama:

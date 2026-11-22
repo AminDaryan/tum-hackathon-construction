@@ -1,0 +1,101 @@
+# "Items of this kind must state these values." Version 0.4 (2026-11-21): version 0.3 plus
+# values tied to their own component (other_parts_any), cable words of other work
+# (other_work_any), pipe sizes written DN/OD, OD or AD/WD, and a test basis linked by its
+# clause. The additions need review by a person.
+# Version 0.7 (2026-11-21, the owner's decision "findings first, risk list second"): the values
+# the issue register checks are gone, so one issue is listed once. The strength class of
+# concrete (A01) and the size of pipes (A04) are left to domain.boq_required_attributes
+# (concrete_strength_class, which now also reads Stahlbeton and Transportbeton with a verb of
+# placing, and pipe_dimension); A01 asks for the exposure class only. Those findings keep the
+# risk types and questions (findings.yaml).
+# Version 0.6 (2026-11-21): A01 skips factory-made concrete pipes (product standard).
+# Version 0.5 (2026-11-21): an insulation thickness may stand before the insulation word
+# ("120 mm dicke Wärmedämmung"); a note that names the position's own item code states a value
+# for it (attributes.py). Needs review by a person.
+# A value counts only when a concrete number or class is found NEAR the component word
+# (`near` = max characters between them), not anywhere in the text, and only when no other
+# component stands between them ("Rohr an Schacht DN 1000": DN 1000 is the manhole's).
+# Missing value -> semantic_warning, never a confirmed error.
+version: 0.7
+defaults:
+  near: 60
+  # A missing value in a position that points to another document is a question about that
+  # document (cannot_tell), not a gap in the text.
+  documents_any: [statik, plan, zeichnung, detail, gutachten, datenblatt]
+  # A note states a value for every component only with one of these words (else it must
+  # name the component word itself).
+  general_any: [alle, sämtliche, generell, grundsätzlich, allgemein]
+  # New work nearer to a component word than other work keeps it of its kind ("Unterquerung
+  # bestehender Kabel, neues Kabel verlegen").
+  new_any: [neu]
+item_kinds:
+  - id: A01
+    risk_type: R031
+    when_any: [ortbeton, stahlbeton, transportbeton]
+    # A factory-made pipe is specified by its product standard, not by in-situ concrete classes.
+    unless_any: [fertigteil, "betonfertigteil", betonrohr]
+    required:
+      exposure_class: '\bX(C[1-4]|D[1-3]|S[1-3]|F[1-4]|A[1-3]|M[1-3]|0)\b'
+  - id: A02
+    risk_type: R038
+    when_any: [betonstahl, bewehrung]
+    required:
+      steel_grade: '\bB\s?500\s?[AB]?\b|\bBSt\s?500'
+  - id: A03
+    risk_type: R038
+    when_any: [stahlträger, stahlkonstruktion, stahlprofil]
+    required:
+      steel_grade: '\bS\s?(235|275|355|420|460)(?:[A-Z0-9+]{0,6})?\b'
+  - id: A05
+    risk_type: R034
+    when_any: [dämmung, wärmedämm, dämmplatte, dämmstoff]
+    near_word: '(dämm\w*)'
+    required:
+      thermal_value: '\b(WLS|WLG)\s?0?\d{2,3}\b|(λ|lambda)\D{0,10}0[,.]0\d{1,3}\b|\b0[,.]0\d{1,3}\s?W/\(?m'
+      thickness: 'dämm\w*(?:(?!\b(auf|unter|über|an)\b)[^.\d]){0,30}?\b(\d{1,3}(?:[,.]\d)?)\s?(mm|cm)\b(?!\s*(stahlbeton|beton|mauerwerk|estrich|holz|ziegel))|\b\d{1,3}(?:[,.]\d)?\s?(?:mm|cm)\s+(?:(?:dick|stark)\w*\s+)?\w*dämm'
+      # thickness must follow the insulation word directly, not across 'auf/unter' or before another material
+  - id: A06
+    risk_type: R043
+    when_any: [brandschutztür, feuerschutztür, feuerschutzabschluss]
+    required:
+      fire_resistance: '\bEI2?\s?\d{2,3}\b|\bT\s?(30|60|90)\b|\bfeuerhemmend\b|\bfeuerbeständig\b'
+    note: "Smoke control (RS, S200, Sa, Sm) is a separate property, see A06b; it does not satisfy fire resistance."
+  - id: A06b
+    risk_type: R043
+    when_any: [rauchschutztür, rauchdicht, rauchschutz]
+    required:
+      smoke_control: '\bRS\b|\bS\s?200\b|\bSa\b|\bSm\b|rauchdicht(?!e\s+ausführung\s+nach\s+wahl)'
+  - id: A07
+    risk_type: R045
+    when_any: [trennwand, montagewand, schallschutz]
+    required:
+      sound_insulation: "\\bR'?w\\s?(=|≥|>=|mind\\.?)?\\s?\\d{2}\\s?dB"
+  - id: A08
+    risk_type: R044
+    when_any: [stahl, geländer, stahlteile]
+    and_any: [außen, aussen, freibewitterung]
+    required:
+      corrosion_protection: 'feuerverzink|stückverzink|verzinkt|duplex|\bC[1-5]-?(VL|L|M|H|VH)?\b|EN\s?ISO\s?12944|EN\s?ISO\s?1461|\b1\.4\d{3}\b'
+  - id: A09
+    risk_type: R040
+    when_any: [prüfung, prüfen, abnahmeprüfung]
+    # The standard must belong to the test: in its clause, not to the supply or laying of
+    # another part ("Rohre nach DIN EN 12201 liefern" names the pipes' product standard).
+    link: clause
+    other_parts_any: [liefer, verleg, einbau, montier, herstell, versetz, verfüll, einbring]
+    required:
+      # A numbered standard or rule (the same pattern as V06): DIN EN 805, DVGW W 400-2,
+      # DVGW-Richtlinie G 469, DVGW-Arbeitsblatt W 400-2, W 291, DWA-A 139, VDE 0100-600.
+      # "Nach DVGW-Richtlinien" without a number, a test pressure or a record is no test basis.
+      test_basis: '\b(?:din|en|iso|vde|dvgw|dwa|atv|dvwk|vdi)\b(?:[\s-]*(?:en|iso|iec|vde|dvwk|richtlinie|arbeitsblatt|merkblatt|blatt|teil|a|m|w|g|gw)\b\.?){0,3}[\s-]*\d{2,5}|\b(?:w|g|gw)\s?\d{3}\b'
+    note: "A named test basis is not a check of the test parameters: whether pressure, duration and acceptance values are complete or meet the standard is not checked. A record ('Protokoll') alone is not a test basis."
+  - id: A10
+    risk_type: R033
+    when_any: [kabel, nym, nyy, "n2xh"]
+    # A power cable laid by the item needs its cross section. A cable word belongs to other
+    # work when the item crosses, exposes or protects existing cables or digs their trench, and
+    # an antenna, data or telecom cable is stated by its type, not by a mm² cross section (this
+    # version has no check of that type). A new cable in the same item is still checked.
+    other_work_any: [bestehend, vorhanden, bestands, unterfahr, unterquer, querung, kreuz, freileg, freigeleg, kabelschutz, schutzrohr, graben, gräben, antenne, koax, datenkabel, netzwerkkabel, fernmelde, telefon, glasfaser, lwl]
+    required:
+      cross_section: '\b\d+\s?[xXG]\s?\d+(?:[,.]\d+)?\s?(mm²|mm2|qmm)'

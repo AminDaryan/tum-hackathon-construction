@@ -1,0 +1,153 @@
+# How the workbench's own findings (the stored issues of a run) become risks. Version 0.7
+# (2026-11-22): llm.bill_review (the Claude review a reviewer starts for one bill) is listed:
+# its rule is the issue type the model names ("r081" is R081), found by a guided language
+# model. Version 0.6 (2026-11-22): a tax mismatch of deterministic.grand_total is R083 (tax treatment), not R077
+# (subtotal); only an ambiguous number of deterministic.data_type_conformance is R120
+# (decimal separator), text such as "abc" in a number field is "other"; R123 (PDF table
+# extraction) is given only for a bill read from a PDF (app/risk/findings.py). Version 0.5
+# (2026-11-21): statistical.open_price_reference is listed: a unit price below the published
+# value of its material is an unusually low price (R080), compared with published statistics
+# (peer_comparison: its money is never exact), for keyword and model-suggested matches alike.
+# Before, its category reached no risk type ("other", method "Rule"). Version 0.4
+# (2026-11-21): domain.boq_description_clarity (the tender review of `main`) is listed; its
+# open_decision and catch_all_wording findings take the risk types of V01 and V02, whose terms
+# they now read alone (wording.yaml 0.7). Version 0.3 (2026-11-21, the owner's decision
+# "findings first, risk list second"): the BoQ checks of
+# Phase B2 are listed. Where one replaces a risk rule that checked the same thing (D05, D30,
+# A04, V03, the strength class of A01, the pipes of D08, contingency positions of V08 and
+# three terms of V05), its findings take that rule's risk type and ask its question
+# (`questions`, `missing`), so the risk list keeps the question and lists the issue once.
+# Checks without a fitting risk type stay "other". Version 0.2 (2026-11-21):
+# statistical.peer_price is mapped explicitly. Version 0.1 (2026-11-20, new; needs review by a
+# person).
+#
+# A finding gets its risk type from, in this order: its detector's `by_rule` entry for the
+# finding's rule; its detector's `by_field` entry for the field of the first highlighted cell;
+# its detector's `risk_type`; the `categories` entry for its issue category; else "other".
+# A detector not listed (for example the B3 checks that come later) therefore still lands in
+# a sensible type. `method` defaults to "invariant" for confirmed rule violations and
+# "peer_comparison" for signals. `questions` (per rule) is the clarification question for the
+# client, with {positions} filled in, for a finding that compares no values; `missing` (per
+# rule) names the documents the run lacks to decide it. `checked_counts` names the detector's
+# own coverage counts that say it read something (besides those ending in "_checked" or
+# "_compared"): without one, a run that found nothing does not cover the risk type.
+version: "0.7"
+detectors:
+  deterministic.line_total: {risk_type: R076, method: invariant}
+  deterministic.subtotal: {risk_type: R077, method: invariant}
+  deterministic.grand_total:
+    risk_type: R077
+    method: invariant
+    by_rule: {tax_mismatch: R083}
+  deterministic.required_values:
+    risk_type: R078
+    method: invariant
+    by_field: {unit_price: R078, line_total: R076, quantity: R016, unit: R017, item_code: R117, description: R119}
+  deterministic.numeric_validity:
+    risk_type: R120
+    method: invariant
+    by_field: {unit_price: R079, line_total: R079, quantity: R018}
+  deterministic.exact_duplicates: {risk_type: R021, method: invariant}
+  deterministic.field_constraints:
+    risk_type: R117
+    method: invariant
+    by_rule: {unique: R116}
+  deterministic.unit_vocabulary: {risk_type: R125, method: invariant}
+  deterministic.unit_compatibility: {risk_type: R017, method: invariant}
+  deterministic.currency_consistency: {risk_type: R082, method: invariant}
+  deterministic.data_type_conformance:
+    risk_type: other
+    method: invariant
+    by_rule: {ambiguous_value: R120}
+  deterministic.extraction_quality: {risk_type: R123, method: invariant}
+  deterministic.formula_errors: {risk_type: R122, method: invariant}
+  deterministic.reference_integrity: {risk_type: R041, method: invariant}
+  # Explicit, so that its coverage (rows compared, without peers, not priced) is recorded;
+  # in 0.1 it reached R081 only through its issue category, and its coverage was missing.
+  statistical.peer_price: {risk_type: R081, method: peer_comparison}
+  statistical.open_price_reference: {risk_type: R080, method: peer_comparison}
+  domain.standard_text_keys:
+    risk_type: R125
+    method: peer_comparison
+    by_rule: {same_key_units: R125, same_key_unit_prices: R081, catalogue_versions: other}
+  # Phase B2 (2026-11-21).
+  deterministic.hierarchy:
+    risk_type: R118
+    method: invariant
+    by_rule: {code_order: R112}
+  deterministic.unit_price_components: {risk_type: R076, method: invariant}
+  domain.boq_bid_prices:
+    risk_type: R079
+    method: invariant
+    checked_counts: [priced_tables]
+    by_rule: {zero_price: R079, token_price: R080, price_below_floor: R080, not_offered: R078, negative_price: R079, tax_in_unit_price: R083}
+  domain.boq_companion_work:
+    risk_type: other
+    method: dependency
+    checked_counts: [items_read]
+    by_rule: {trench_without_backfill: R005, pipe_without_pressure_test: R010}
+    questions:
+      trench_without_backfill: "Which position pays for backfilling and compacting the excavation of {positions}?"
+      pipe_without_pressure_test: "Which position pays for the pressure or leak test (and its record) of the pipes in {positions}?"
+  domain.boq_required_attributes:
+    risk_type: other
+    method: attribute_consistency
+    checked_counts: [items_read]
+    by_rule: {disposal_waste_class: R088, concrete_strength_class: R038, pipe_dimension: R033}
+    questions:
+      disposal_waste_class: "Which waste class (an AVV code, a class under the Ersatzbaustoffverordnung or the DepV) should the disposal price of {positions} assume, or is there an analysis?"
+      concrete_strength_class: "Which strength class does the concrete of {positions} need?"
+      pipe_dimension: "Which dimension (DN, OD or diameter) do the pipes or fittings of {positions} have?"
+  domain.boq_clauses:
+    risk_type: other
+    method: vagueness
+    checked_counts: [items_with_text]
+    by_rule: {vague_wording: R037, open_lump_sum: R090, document_reference: R041}
+    questions:
+      open_lump_sum: "On which quantity basis is the lump sum {positions} to be priced, and how will it be measured?"
+      document_reference: "Which drawing or document (number and revision) is meant in {positions}? Please provide it."
+    missing:
+      document_reference: ["the drawings or documents the positions refer to"]
+  domain.boq_position_types:
+    risk_type: R089
+    method: vagueness
+    checked_counts: [items_read]
+    questions:
+      contingency_and_hourly: "Will the contingency or hourly work in {positions} be ordered, and in which quantity should it be priced?"
+  domain.boq_separate_payment: {risk_type: other, method: dependency, checked_counts: [items_read]}
+  # The tender review (main, 2026-11-21): the rules that took over V01's and V02's wording.
+  domain.boq_description_clarity:
+    risk_type: other
+    method: vagueness
+    checked_counts: [items_read]
+    by_rule: {open_decision: R036, catch_all_wording: R037}
+    questions:
+      open_decision: "Who decides what {positions} leave open, by when, and is that decision part of this contract?"
+      catch_all_wording: "Which parts and services are included in {positions}? Please list them or name the specification."
+  # domain.boq_typos (typing slips) has no risk type of its own: "other" by its issue category.
+  # The Claude bill review (2026-11-22): each claim names one issue type of the catalogue.
+  llm.bill_review:
+    risk_type: other
+    method: guided_llm
+    by_rule: {r016: R016, r018: R018, r023: R023, r031: R031, r033: R033, r038: R038, r051: R051, r080: R080, r081: R081, r082: R082, r083: R083, r084: R084, r085: R085, r112: R112}
+categories:
+  arithmetic: R076
+  subtotal: R077
+  grand_total: R077
+  missing_value: R078
+  numeric_value: R120
+  duplicate: R021
+  unit: R017
+  currency: R082
+  constraint: R117
+  reference: R041
+  formula_error: R122
+  extraction: R123
+  data_type: R120
+  statistical_outlier: R081
+  unit_price: R081
+# Issue categories whose findings change a total when they are real.
+changes_totals_categories: [arithmetic, subtotal, grand_total, duplicate, unit_price, statistical_outlier]
+# Findings of detectors not listed above, in these categories, compare a position with similar
+# positions: a difference from them is not a loss, so their money is never shown as exact.
+peer_comparison_categories: [statistical_outlier, unit_price]

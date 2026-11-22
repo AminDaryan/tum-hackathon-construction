@@ -1,0 +1,26 @@
+# Generic tabular profile: no domain assumptions.
+# Columns are not mapped to semantic fields automatically, so detectors that need mapped fields
+# (for example line-total reconciliation) report themselves as not applicable instead of guessing.
+profile_id: generic
+name: Generic table
+# 1.1.0 (2026-11-21): every registered check runs on every run (ADR 0010); checks that need
+# mapped fields report themselves as not applicable.
+version: 1.1.0
+description: >-
+  Domain-neutral profile for any tabular dataset. Runs only checks that need no semantic
+  knowledge (duplicates, spreadsheet error values, extraction quality, type consistency).
+locale:
+  decimal_separator: auto
+  date_order: auto
+  default_currency: null
+fields: []
+row_classification:
+  label_fields: []
+  fallback_to_first_text_cell: false
+units: []
+currency_aliases: {}
+# Words of yes/no fields (this profile maps no fields; kept for profiles derived from it).
+boolean_words:
+  true_words: ["true", "yes", "ja", "wahr", "y", "j", "x"]
+  false_words: ["false", "no", "nein", "falsch", "n"]
+detector_defaults: {}

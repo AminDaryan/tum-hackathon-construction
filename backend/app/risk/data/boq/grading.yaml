@@ -1,0 +1,146 @@
+# Tier rules for the risk grader. Version 0.6 (2026-11-21, owner's request): T07c and T07d keep a
+# spelling finding and the tender review's catch-all wording, alone and without money, in the
+# check record. Version 0.5 (2026-11-21): version 0.4 plus T07b, the
+# product convention for a general quality word, and words that only look structural. Version 0.4 (2026-11-20): version 0.3 (after
+# the second review) plus T08a for related work that is not tied to the component, the words
+# behind the floors, and the combination limits. The additions need review by a person.
+# The first rule that matches decides the tier; floors below can only raise it.
+# The 1 % and 5 % thresholds are UNVALIDATED product defaults, to be tuned on the dev split
+# only; every tier reason that uses one says so.
+version: "0.6"
+thresholds_validated: false
+tiers: [critical, high, medium, low, info]
+
+# Total used for shares: net bill total of positions that count toward the total (no
+# alternatives, no provisional items without total). An unpriced bill has no total, and then
+# no share: amounts are not estimated from category factors.
+total_basis: counted_net_total
+
+rules:
+  - id: T01
+    tier: critical
+    when: {harm: safety, state: risk, evidence_not_only_keywords: true}
+    reason: Possible risk to people's safety, backed by more than a keyword match; review first.
+  - id: T02
+    tier: critical
+    when: {certainty: confirmed, share_of_total_at_least: "0.05"}
+    reason: Confirmed error that moves the total by 5 % or more.
+  - id: T03
+    tier: high
+    when: {harm: safety}
+    reason: Possible safety issue from keywords or an open question; a person must check it. Not a confirmed hazard.
+  - id: T04
+    tier: high
+    when: {share_of_total_at_least: "0.01"}
+    reason: Money at stake 1 % of the total or more (an exact amount, or the upper end of an estimate).
+  - id: T05
+    tier: high
+    when: {lump_sum: true, vague: true}
+    reason: Vague lump sum; the price cannot be estimated reliably.
+  - id: T06
+    tier: high
+    when: {money: unknown, challenge_priority: critical, certainty_in: [confirmed, suspected]}
+    reason: Critical risk type, size unknown.
+  - id: T07
+    tier: low
+    when: {harm: data_quality, changes_totals: false}
+    reason: Formatting or data issue that does not change any total.
+  # Product convention (not a finding about the text): a general quality word such as
+  # "fachgerecht" or "hochwertig" with no standard, class or tolerance tied to it, and no sign
+  # of a larger impact (safety, a lump sum, money, a second signal), goes to the check record.
+  # A structural or fire-rated position does not raise it: the values those parts need are
+  # checked by their own rules (A01, A02, A06).
+  - id: T07b
+    tier: low
+    when: {only_rules_in: [V06], money: unknown}
+    raise_by_floors: false
+    reason: "Product convention: a general quality word with no standard, class or tolerance tied to it, and no sign of a larger impact, is kept in the check record at low priority. It is not verified and not passed; a person decides whether the text is enough."
+  # Product conventions (version 0.6), like T07b: a misspelt or rare word form, and a catch-all
+  # word of the tender review ("komplett", "einschl. aller") with nothing else on the reminder,
+  # are kept in the check record. A structural position does not raise them (its values have
+  # their own rules); safety, a vague lump sum, money or a second signal of another rule still do.
+  - id: T07c
+    tier: low
+    when: {only_rules_in: ["domain.boq_typos:known_misspelling", "domain.boq_typos:rare_variant", "domain.boq_typos:repeated_word"], money: unknown}
+    raise_by_floors: false
+    reason: "Product convention: a spelling finding changes no quantity, price or requirement by itself, so it is kept in the check record at low priority. It is not verified and not passed; correct the text if it is wrong."
+  - id: T07d
+    tier: low
+    when: {only_rules_in: ["domain.boq_description_clarity:catch_all_wording"], money: unknown}
+    raise_by_floors: false
+    reason: "Product convention: catch-all wording alone (\"komplett\", \"einschl. aller\") is common in a bill and names no missing part, so it is kept in the check record at low priority. It is not verified and not passed; a person decides whether the inclusions are clear."
+  - id: T08a
+    tier: low
+    when: {state: cannot_tell, found_unlinked: true}
+    reason: Related work was found, but nothing ties it to this component; confirm that it covers it.
+  - id: T08
+    tier: medium
+    when: {state_in: [risk, cannot_tell]}
+    reason: Open risk or question without a stronger rule; unknown money never means no action.
+  - id: T09
+    tier: info
+    when: {state_in: [covered, not_applicable]}
+    reason: Note for the coverage table only.
+
+# Money at stake (version 0.3):
+#   1. exact: the computed difference (wrong total, price slip, double-counted item value).
+#   2. estimate: only with its quantity, reference price, comparable positions and range.
+#      Not built yet: it needs priced similar positions (Phase B3's text index).
+#   3. unknown: everything else. Never position value x factor shown as money.
+money_sources:
+  exact: [pricing, data_quality, quantity]
+  estimate_position_value: [missing_scope, duplicate_scope]
+# Ordering heuristic for rows with unknown money ONLY: a rough size class used to order them
+# inside their tier, shown as "size class", never as euros or as a loss.
+unknown_money_size_hint:
+  basis: line totals of the affected positions as a share of the counted total (priced bills only)
+  classes: {large: "0.01", medium: "0.001"}
+# Floors: minimum tier whatever the money.
+floors:
+  - {when: {position_is: structural, category_in: [unclear_description, contradiction, standards]}, min_tier: high}
+  - {when: {position_is: fire_rated}, min_tier: high}
+# Words that make a position structural or fire-rated (substrings of the folded text; the
+# pattern is a regular expression).
+position_words:
+  structural: [stahlbeton, tragend, bewehrung, fundament, stütze, träger, unterzug, ringbalken, geschossdecke]
+  # ... but not these, which only contain one of them (version 0.5).
+  not_structural: [versorgungsträger, leitungsträger, kostenträger, bauträger, vorhabenträger, maßnahmenträger, datenträger, unterstütz]
+  fire_rated_pattern: '\b(?:ei2?|rei)\s?\d{2,3}\b|\bf\s?(?:30|60|90|120)\b|\bt\s?(?:30|60|90)\b|brandschutz'
+
+# Combination: raise one tier when 2+ DISTINCT signal kinds hit one position, counted after
+# merging duplicates (findings with the same evidence cells, or of the same type on the same
+# positions, are one risk; one finding reported by two methods counts once). Never above
+# critical, never for cannot_tell, never to critical for a safety risk from keywords only.
+# Only risks on at most `max_positions` positions combine (a section-wide wording risk does
+# not raise every finding in its section).
+combination:
+  min_distinct_signal_kinds: 2
+  raise_by: 1
+  max_positions: 3
+  # Two keyword clues are still clues: evidence from keywords alone is raised to high at most.
+  max_tier_keywords_only: high
+
+# Certainty weights scale euros for ORDERING only: never shown, not probabilities.
+order_weight: {confirmed: "1.0", suspected: "0.6", semantic: "0.4", unclear: "0.2"}
+
+# Sort key, compared left to right; gives ranks 1..N with no ties. Money first (team decision).
+sort_key:
+  - {field: tier, order: desc}
+  - {field: state, order: desc}
+  - {field: weighted_exposure_eur, order: desc}
+  - {field: unknown_money_size_class, order: desc}
+  - {field: challenge_priority, order: desc}
+  - {field: distinct_signal_kinds, order: desc}
+  - {field: risk_id, order: asc}
+
+# The main list holds reminders with concrete evidence (state risk), a noteworthy impact (tier
+# medium or above) and a next action. Safety doubts stay visible whatever their state. All
+# other reminders stay in the check record: open questions are grouped by the document they
+# need or by their cause and asked once; nothing there counts as passed.
+main_list:
+  states: [risk]
+  min_tier: medium
+  always_show_harm: [safety]
+track_record:
+  min_reviews: 5
+  demote_if_precision_below: "0.3"

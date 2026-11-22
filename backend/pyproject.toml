@@ -1,0 +1,129 @@
+[build-system]
+requires = ["hatchling==1.33.0"]  # exact, like every other tool (SYSTEM_REQUIREMENTS.md)
+build-backend = "hatchling.build"
+
+[project]
+name = "tabular-integrity-workbench-backend"
+version = "0.1.0"
+description = "Backend of the Tabular Integrity Workbench: ingestion, canonical data model and validation engine."
+readme = "README.md"
+# The Python versions that are tested, and which one goes where: SYSTEM_REQUIREMENTS.md.
+requires-python = ">=3.11"
+dependencies = [
+  "fastapi>=0.115",
+  "uvicorn>=0.30",
+  "pydantic>=2.9",
+  "pydantic-settings>=2.5",
+  "sqlalchemy>=2.0.30",
+  "openpyxl>=3.1.5",
+  "defusedxml>=0.7.1",
+  "lxml>=6.0",  # GAEB DA XML: XSD validation (the standard library has none)
+  "pypdfium2>=4.30",  # PDF bills: the text layer with positions (PDFium, BSD/Apache)
+  "python-multipart>=0.0.18",
+  "pyyaml>=6.0.2",
+  "charset-normalizer>=3.4",
+  # Statistics of the BoQ signal checks (floats only inside statistics; money stays Decimal).
+  # numpy 2.5.5 is the first 2.5 release whose Linux wheel no longer bundles libquadmath.
+  # numpy 2.5 needs Python 3.12; on Python 3.11 the newest is 2.4.6, whose Windows wheel
+  # bundles the same libraries as 2.5.5's, but whose Linux wheels (and macOS wheels before
+  # macOS 14) still bundle libquadmath (LGPL): Python 3.11 is for Windows only
+  # (SYSTEM_REQUIREMENTS.md; tests/unit/test_bundled_libraries.py fails elsewhere).
+  "numpy>=2.5.5; python_version >= '3.12'",
+  "numpy>=2.4.6; python_version < '3.12'",
+  "pandas>=3.0.5",
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=8.3",
+  "pytest-cov>=7.0",
+  "httpx>=0.27",
+  "ruff>=0.8",
+  # Type checking (python -m mypy; configuration in [tool.mypy]) and the stubs it needs.
+  "mypy>=2.4.1",
+  "pandas-stubs~=3.0.5",  # versioned like pandas: stubs of the 3.0 series that the lock pins
+  "types-defusedxml>=0.7.0",
+  "types-openpyxl>=3.1.5",
+  "types-PyYAML>=6.0.12",
+]
+# PostgreSQL through the pure-Python pg8000 driver (BSD-3-Clause):
+# TWB_DATABASE_URL=postgresql+pg8000://user:password@host:5432/database
+postgres = [
+  "pg8000>=1.31",
+]
+# Claude through Anthropic's official SDK (Apache-2.0): the bill review a reviewer starts
+# (only with TWB_BILL_REVIEW__ANTHROPIC_API_KEY) and app.evaluation.llm_review --provider
+# anthropic. The app works without it.
+llm = [
+  "anthropic>=1.0",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["app"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra --strict-markers"
+markers = [
+  "integration: tests that exercise several layers together (API, persistence, ingestion)",
+  "evaluation: synthetic-benchmark evaluation of detectors",
+  "performance: wall-clock limits from the brief; CI runs them in their own step without coverage, because coverage tracing slows the code several times over",
+]
+filterwarnings = ["error::DeprecationWarning:app.*"]
+
+[tool.coverage.run]
+source = ["app"]
+branch = true
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = true
+
+[tool.mypy]
+# `python -m mypy` with no arguments checks the app package in strict mode (CI: "Type check"),
+# as Python 3.11 code: the lowest version of requires-python (SYSTEM_REQUIREMENTS.md).
+python_version = "3.11"
+strict = true
+files = ["app"]
+plugins = ["pydantic.mypy"]
+
+[[tool.mypy.overrides]]
+# These libraries ship no type information; lxml-stubs also lags behind lxml 6.
+module = ["lxml", "lxml.*", "pypdfium2", "pypdfium2.*"]
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+# pypdfium2 (PDF text layer and page rendering) ships no type information either.
+module = ["pypdfium2", "pypdfium2.*"]
+ignore_missing_imports = true
+
+[tool.pydantic-mypy]
+init_forbid_extra = true
+init_typed = true
+warn_required_dynamic_aliases = true
+
+[tool.ruff]
+line-length = 100
+# The lowest version of requires-python: ruff then reports syntax that Python 3.11 lacks.
+target-version = "py311"
+src = ["app", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP", "SIM", "RUF", "S", "PT", "C4"]
+ignore = [
+  "S101",   # assert is fine in tests
+  "RUF001", # intentional typographic characters such as × and ² in user-facing text
+  "RUF002",
+  "RUF003",
+  "RUF012", # ClassVar annotations are used explicitly where needed
+  # typing.Generic stays: PEP 695 type parameters (Python 3.12) are optional, and Pydantic
+  # generic models and the repositories keep one style.
+  "UP046",
+  "UP047",
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["S", "B011", "PT018", "C408"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["app", "tests"]

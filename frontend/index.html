@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="color-scheme" content="light dark" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <script>
+      // Colour scheme before the first paint: the saved choice, else the system setting. The tab
+      // icon follows it. app/colorScheme.ts owns the preference and keeps both in sync afterwards.
+      try {
+        var choice = localStorage.getItem('twb.colorScheme');
+        var dark = choice === 'dark' || (choice !== 'light' && matchMedia('(prefers-color-scheme: dark)').matches);
+        document.documentElement.dataset.colorScheme = dark ? 'dark' : 'light';
+        if (dark) document.querySelector('link[rel="icon"]').setAttribute('href', '/favicon-dark.svg');
+      } catch (error) {
+        document.documentElement.dataset.colorScheme = 'light';
+      }
+      // Accessibility preferences before the first paint (app/accessibility.ts owns them).
+      try {
+        var a11y = JSON.parse(localStorage.getItem('twb.accessibility') || '{}') || {};
+        var root = document.documentElement.dataset;
+        root.textSize = ['large', 'larger'].indexOf(a11y.textSize) >= 0 ? a11y.textSize : 'default';
+        var more = matchMedia('(prefers-contrast: more)').matches;
+        root.contrast = a11y.contrast === 'high' || (a11y.contrast !== 'standard' && more) ? 'high' : 'standard';
+        var still = matchMedia('(prefers-reduced-motion: reduce)').matches;
+        root.motion = a11y.motion === 'reduce' || still ? 'reduce' : 'full';
+        root.underlineLinks = String(a11y.underlineLinks === true);
+        root.readableText = String(a11y.readableText === true);
+        root.strongFocus = String(a11y.strongFocus === true);
+      } catch (error) {
+        // the defaults apply
+      }
+    </script>
+    <meta name="description" content="Desvio Risk Intelligence: finds and explains the cost risks in a priced bill of quantities. Connect. Detect. Decide." />
+    <title>Desvio Risk Intelligence</title>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

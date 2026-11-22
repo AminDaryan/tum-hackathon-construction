@@ -1,0 +1,27 @@
+/** German for: The bid risk report of a project (the positions that drive price and risk). */
+export const report = {
+  'Bid risk report': 'Risikobericht zum Angebot',
+  'Bid risk report: {name}': 'Risikobericht zum Angebot: {name}',
+  'Loading the report…': 'Der Bericht wird geladen…',
+  'Open the project overview': 'Projektübersicht öffnen',
+  'Validate the project to see its bid risk report': 'Prüfen Sie das Projekt, um seinen Risikobericht zum Angebot zu sehen',
+  'Made on {time} from the last validation.': 'Erstellt am {time} aus der letzten Prüfung.',
+  'Print or save as PDF': 'Drucken oder als PDF speichern',
+  'Bills in this report': 'Leistungsverzeichnisse in diesem Bericht',
+  '{positions}, total {total}': '{positions}, Summe {total}',
+  '{positions}, no prices': '{positions}, ohne Preise',
+  'Not in this report: {name} ({reason})': 'Nicht in diesem Bericht: {name} ({reason})',
+  'Positions that drive price and risk': 'Positionen, die Preis und Risiko bestimmen',
+  '{shown} of {total} with reminders': '{shown} von {total} mit Hinweisen',
+  'No position has a reminder.': 'Keine Position hat einen Hinweis.',
+  Reminders: 'Hinweise',
+  '{share} of the bill': '{share} des LV',
+  'No reminder: listed for its size': 'Kein Hinweis: wegen ihrer Größe aufgeführt',
+  'Reminders about several positions': 'Hinweise zu mehreren Positionen',
+  'Listed once; their money is not spread over the positions.':
+    'Einmal aufgeführt; ihr Betrag wird nicht auf die Positionen verteilt.',
+  'Concerns {count} positions': 'Betrifft {count} Positionen',
+  'Concerns the whole bill': 'Betrifft das ganze LV',
+  'Concerns a total or heading row': 'Betrifft eine Summen- oder Überschriftszeile',
+  'How this list was made': 'Wie diese Liste entstanden ist',
+};

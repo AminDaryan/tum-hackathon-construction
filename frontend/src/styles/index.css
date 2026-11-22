@@ -1,0 +1,548 @@
+@import "tailwindcss";
+
+/*
+ * Design tokens for the Tabular Integrity Workbench.
+ *
+ * This file is the single source of truth for colour, type, shape, elevation and motion.
+ * Tailwind v4 turns every token into utilities (bg-surface, text-ink-secondary, border-hairline,
+ * text-title, shadow-overlay, ease-standard, w-sidebar, ...). Components use those utilities and
+ * never ad-hoc hex values. Tailwind's default palette, type scale and shadows are reset so that
+ * only the tokens below exist. All text pairs were checked against WCAG AA (see README).
+ */
+@theme {
+  --color-*: initial;
+  --text-*: initial;
+  --shadow-*: initial;
+
+  /* Typography: IBM Plex Sans for UI, IBM Plex Mono for cell references, ids, formulas and evidence. */
+  --font-sans: "IBM Plex Sans Variable", "IBM Plex Sans", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+
+  /* HIG-like type scale: size / line height / weight. */
+  --text-title: 1.25rem; /* 20px */
+  --text-title--line-height: 1.75rem; /* 28px */
+  --text-title--font-weight: 600;
+  --text-title--letter-spacing: -0.012em;
+  --text-headline: 0.9375rem; /* 15px */
+  --text-headline--line-height: 1.25rem; /* 20px */
+  --text-headline--font-weight: 600;
+  --text-body: 0.875rem; /* 14px */
+  --text-body--line-height: 1.25rem; /* 20px */
+  --text-callout: 0.8125rem; /* 13px */
+  --text-callout--line-height: 1.125rem; /* 18px */
+  --text-caption: 0.75rem; /* 12px */
+  --text-caption--line-height: 1rem; /* 16px */
+
+  /* Neutral canvas and work surfaces: the cool greys of a drawing office ("Blueprint"). */
+  --color-canvas: #f2f4f6;
+  --color-sidebar: #e9edf1;
+  --color-surface: #ffffff;
+  --color-surface-muted: #f8f9fb;
+  --color-hairline: #dde2e8;
+  --color-hairline-strong: #c5ccd5;
+  --color-control-border: #848d99; /* 3:1 against white: boundaries of inputs and selects */
+
+  /* Text. */
+  --color-ink: #151a21;
+  --color-ink-secondary: #4a5461;
+  --color-ink-tertiary: #5d6774;
+  --color-on-accent: #ffffff;
+
+  /* The one accent, petrol blue: primary actions, selection and focus. */
+  --color-accent: #1d4f73;
+  --color-accent-hover: #17425f;
+  --color-accent-pressed: #12354d;
+  --color-accent-strong: #173f5c;
+  --color-accent-subtle: #e4edf4;
+  --color-focus: #1d4f73;
+
+  /* The Desvio mark's two pieces, in the colours of public/favicon.svg (favicon-dark.svg in the
+     dark scheme), so the top bar and the tab show the same mark. They stay the same in high
+     contrast: a logo is exempt from the contrast minimum (WCAG 1.4.3, 1.4.11), and the app's
+     name beside it is the text. */
+  --color-logo: #1d4f73;
+  --color-logo-secondary: #4a90c2;
+
+  /* Behind modal dialogs. */
+  --color-scrim: rgb(21 26 33 / 0.3);
+  --color-scrim-strong: rgb(21 26 33 / 0.45);
+
+  /* Material state layers: translucent ink over the element's own background. */
+  --color-state-hover: rgb(21 26 33 / 0.05);
+  --color-state-selected: rgb(21 26 33 / 0.07);
+
+  /* Evidence classes. Always rendered together with an icon and a text label. */
+  --color-violation: #b42318;
+  --color-violation-bg: #fdf1ef;
+  /* Workspace sheet: a cell with an open finding, and the selected finding's cells. */
+  --color-issue-cell: #fbe4e0;
+  --color-issue-cell-strong: #f6cdc6;
+  --color-violation-border: #f3c4bd;
+  --color-anomaly: #8f4b00;
+  --color-anomaly-bg: #fdf4e3;
+  --color-anomaly-border: #efd09b;
+  --color-semantic: #6a3bb0;
+  --color-semantic-bg: #f4f0fb;
+  --color-semantic-border: #d9cdf0;
+  --color-extraction: #55534d;
+  --color-extraction-bg: #efeeeb;
+  --color-extraction-border: #d6d3cc;
+  --color-context: #1f58a3;
+  --color-context-bg: #edf3fb;
+  --color-context-border: #c3d5ef;
+  --color-confirmed: #7f1d14;
+  --color-on-confirmed: #ffffff;
+
+  /* Status tones (dot + label) for documents, runs, detectors and reviews. */
+  --color-success: #1f7a45;
+  --color-warning: #b26a00;
+  --color-danger: #b42318;
+  --color-danger-bg: #fdf1ef;
+  --color-info: #1f58a3;
+  --color-neutral: #8c8982;
+
+  /* Placeholder shapes while content loads (Skeleton). */
+  --color-skeleton: rgb(21 26 33 / 0.08);
+
+  /* Shape. */
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+
+  /* Elevation is reserved for overlays (floating inspector, tooltips). */
+  --shadow-overlay: 0 12px 32px rgb(21 26 33 / 0.14), 0 2px 8px rgb(21 26 33 / 0.08);
+  /* A hairline lift under buttons and fields, so controls read as pressable on white. */
+  --shadow-control: 0 1px 1px rgb(21 26 33 / 0.06);
+  --shadow-popover: 0 4px 16px rgb(21 26 33 / 0.12), 0 1px 3px rgb(21 26 33 / 0.08);
+
+  /* Layout (8-pt grid; Tailwind's spacing unit stays 4px for half steps). */
+  /* In rem, like the rest of the page, so the names keep their room at every text size. */
+  --spacing-sidebar: 17.5rem; /* the navigation that opens over the page: 280px at the default text size */
+  /* A page of a project that is one window tall: the window less the top bar (3.5rem), the
+     project's bar (3rem and its hairline) and the page's margins above and below (1.5rem each). */
+  --spacing-project-page: calc(100dvh - 9.5rem - 1px);
+  --spacing-inspector: 384px; /* the issue table fits beside it from 1280px */
+
+  /* Motion: Material standard easing, 150-200ms. */
+  --ease-standard: cubic-bezier(0.2, 0, 0, 1);
+  --default-transition-duration: 150ms;
+  --default-transition-timing-function: cubic-bezier(0.2, 0, 0, 1);
+}
+
+/*
+ * Material state layer: a currentColor overlay that fades in on hover and press. Used on
+ * buttons, chips, tabs and navigation items so every interactive element reacts the same way.
+ */
+@utility state-layer {
+  position: relative;
+  isolation: isolate;
+
+  &::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    border-radius: inherit;
+    background-color: currentColor;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity var(--default-transition-duration) var(--ease-standard);
+  }
+
+  &:hover:not(:disabled, [aria-disabled="true"])::before {
+    opacity: 0.06;
+  }
+
+  &:active:not(:disabled, [aria-disabled="true"])::before {
+    opacity: 0.1;
+  }
+}
+
+/* A white work surface with a hairline border. Surfaces are never nested. */
+@utility surface {
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-hairline);
+  border-radius: var(--radius-lg);
+  overflow: clip;
+}
+
+/*
+ * Dark scheme. index.html sets data-color-scheme on <html> before the first paint, from the
+ * reader's choice or, by default, the system setting (app/colorScheme.ts keeps it in sync). Only
+ * the token values change; every pair a component uses was checked against WCAG AA. Finding
+ * colours keep their hue and become light text on dark tints, so red, amber, violet and blue
+ * still mean the same thing.
+ *
+ * Each scheme also sets the browser's own `color-scheme`, which draws scrollbars and form
+ * controls: index.html declares "light dark", which on its own follows the system, so Light
+ * chosen on a dark system would keep dark scrollbars. Printing always uses the light tokens:
+ * dark text on white paper.
+ */
+:root[data-color-scheme='light'] {
+  color-scheme: light;
+}
+
+@media screen {
+:root[data-color-scheme='dark'] {
+  color-scheme: dark;
+
+  --color-canvas: #0f1419;
+  --color-sidebar: #131a21;
+  --color-surface: #182029;
+  --color-surface-muted: #1c2530;
+  --color-hairline: #2a3440;
+  --color-hairline-strong: #3a4553;
+  --color-control-border: #77828f;
+
+  --color-ink: #e6eaef;
+  --color-ink-secondary: #b4bdc8;
+  --color-ink-tertiary: #929dab;
+  --color-on-accent: #0b1722;
+
+  --color-accent: #7cb0da;
+  --color-accent-hover: #93c0e3;
+  --color-accent-pressed: #6aa2cf;
+  --color-accent-strong: #a3cbea;
+  --color-accent-subtle: #1c3347;
+  --color-focus: #7cb0da;
+
+  --color-logo: #e6eaef;
+  --color-logo-secondary: #7cb0da;
+
+  --color-scrim: rgb(0 0 0 / 0.55);
+  --color-scrim-strong: rgb(0 0 0 / 0.6);
+  --color-state-hover: rgb(230 234 239 / 0.06);
+  --color-state-selected: rgb(230 234 239 / 0.09);
+
+  --color-violation: #ff9282;
+  --color-violation-bg: #3a1f1d;
+  --color-issue-cell: #3b2220;
+  --color-issue-cell-strong: #57302a;
+  --color-violation-border: #6e3229;
+  --color-anomaly: #f2b660;
+  --color-anomaly-bg: #332818;
+  --color-anomaly-border: #5f4720;
+  --color-semantic: #c8acf5;
+  --color-semantic-bg: #2a2338;
+  --color-semantic-border: #4a3b6b;
+  --color-extraction: #c3c9d2;
+  --color-extraction-bg: #232a33;
+  --color-extraction-border: #3e4753;
+  --color-context: #8fbdf2;
+  --color-context-bg: #1b2a3d;
+  --color-context-border: #34507a;
+  --color-confirmed: #a3291c;
+  --color-on-confirmed: #ffffff;
+
+  --color-success: #62cc8f;
+  --color-warning: #e8a940;
+  --color-danger: #ff9282;
+  --color-danger-bg: #3a1f1d;
+  --color-info: #8fbdf2;
+  --color-neutral: #7d8794;
+
+  --color-skeleton: rgb(230 234 239 / 0.1);
+
+  --shadow-overlay: 0 12px 32px rgb(0 0 0 / 0.5), 0 2px 8px rgb(0 0 0 / 0.35);
+  --shadow-control: 0 1px 1px rgb(0 0 0 / 0.3);
+  --shadow-popover: 0 4px 16px rgb(0 0 0 / 0.45), 0 1px 3px rgb(0 0 0 / 0.3);
+}
+}
+
+/*
+ * Accessibility preferences (app/accessibility.ts, Settings, Accessibility). Each is an attribute
+ * of <html>; these rules are outside the layers, so they win over component utilities.
+ */
+
+/* Text size: every size is in rem, so the whole interface scales with the root size. */
+:root[data-text-size='large'] {
+  font-size: 112.5%;
+}
+
+:root[data-text-size='larger'] {
+  font-size: 125%;
+}
+
+/* High contrast: secondary text close to the main text, firm borders, a darker focus ring. */
+:root[data-contrast='high']:not([data-color-scheme='dark']) {
+  --color-ink: #000000;
+  --color-ink-secondary: #1f2630;
+  --color-ink-tertiary: #2c3440;
+  --color-hairline: #8a939f;
+  --color-hairline-strong: #5b6470;
+  --color-control-border: #39414c;
+  --color-accent: #123a57;
+  --color-accent-strong: #0d2c43;
+  --color-focus: #0d2c43;
+  --color-state-hover: rgb(0 0 0 / 0.08);
+  --color-state-selected: rgb(0 0 0 / 0.12);
+}
+
+@media screen {
+:root[data-contrast='high'][data-color-scheme='dark'] {
+  --color-canvas: #05080b;
+  --color-sidebar: #0a0f14;
+  --color-surface: #0e141a;
+  --color-ink: #ffffff;
+  --color-ink-secondary: #e3e8ee;
+  --color-ink-tertiary: #ccd3dc;
+  --color-hairline: #66717e;
+  --color-hairline-strong: #8f9aa7;
+  --color-control-border: #b3bcc7;
+  --color-accent: #a9d0f0;
+  --color-accent-strong: #c6e0f6;
+  --color-focus: #c6e0f6;
+  --color-state-hover: rgb(255 255 255 / 0.1);
+  --color-state-selected: rgb(255 255 255 / 0.14);
+}
+}
+
+/* Reduced motion, chosen here even when the system allows motion. */
+:root[data-motion='reduce'] *,
+:root[data-motion='reduce'] ::before,
+:root[data-motion='reduce'] ::after {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.01ms !important;
+  scroll-behavior: auto !important;
+}
+
+/* Links in the page underlined, not told apart by colour alone (buttons and tabs excepted). */
+:root[data-underline-links='true'] main a:not([data-button]):not([role='tab']),
+:root[data-underline-links='true'] header a:not([data-button]),
+:root[data-underline-links='true'] [role='dialog'] a:not([data-button]) {
+  text-decoration-line: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.2em;
+}
+
+/* Easier reading: more space between letters, words and lines. */
+:root[data-readable-text='true'] body {
+  letter-spacing: 0.02em;
+  word-spacing: 0.08em;
+}
+
+:root[data-readable-text='true'] :is(p, li, dd, dt, label, td, th, blockquote) {
+  line-height: 1.6;
+}
+
+/* A strong focus ring: thicker, further out, with a halo, on every focusable element. */
+:root[data-strong-focus='true'] :focus-visible:not(#main-content) {
+  outline: 3px solid var(--color-focus) !important;
+  outline-offset: 3px !important;
+  box-shadow: 0 0 0 7px color-mix(in srgb, var(--color-focus) 28%, transparent) !important;
+}
+
+@layer base {
+  html {
+    background-color: var(--color-canvas);
+    color: var(--color-ink);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
+
+  body {
+    min-height: 100dvh;
+    background-color: var(--color-canvas);
+    font-size: var(--text-body);
+    line-height: var(--text-body--line-height);
+  }
+
+  /* Clickable controls show the pointing hand (Tailwind 4 leaves buttons on the arrow). */
+  :is(button, [role='button'], [role='tab'], [role='option'], [role^='menuitem'], [role='switch'], summary),
+  label:has(> input:is([type='checkbox'], [type='radio'])) {
+    cursor: pointer;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-focus);
+    outline-offset: 2px;
+  }
+
+  ::selection {
+    background-color: var(--color-accent-subtle);
+    color: var(--color-ink);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    ::before,
+    ::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+}
+
+/* The full workbench remains the default on tablets and desktops. */
+.phone-landing {
+  display: none;
+}
+
+@media (max-width: 639px) and (pointer: coarse) {
+  .phone-landing {
+    position: fixed;
+    inset: 0;
+    z-index: 100;
+    display: grid;
+    place-items: center;
+    overflow-y: auto;
+    padding: 1.5rem;
+    background: var(--color-canvas);
+  }
+
+  .phone-landing-card {
+    width: min(100%, 23rem);
+    padding: 2rem 1.5rem 1.5rem;
+    text-align: center;
+    background: var(--color-surface);
+    border: 1px solid var(--color-hairline);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-popover);
+  }
+
+  .phone-landing-mark {
+    display: grid;
+    place-items: center;
+    width: 3.5rem;
+    height: 3.5rem;
+    margin: 0 auto 1rem;
+    color: var(--color-accent);
+    background: var(--color-accent-subtle);
+    border-radius: 50%;
+  }
+
+  .phone-landing-continue {
+    min-height: 3rem;
+    margin-top: 1rem;
+    padding: 0.75rem 1rem;
+    color: var(--color-accent-strong);
+    font-size: var(--text-callout);
+    text-decoration: underline;
+    text-underline-offset: 0.2em;
+  }
+
+  .phone-app-continued + .phone-landing {
+    display: none;
+  }
+}
+
+/*
+ * A disabled control shows that it cannot be used, whatever cursor its classes give it. Outside
+ * any layer on purpose, so it wins over the cursor utilities. A pending button keeps `progress`.
+ */
+:is(button, [role='button'], [role='tab'], [role='option'], [role^='menuitem'], [role='switch'], label):is(
+    :disabled,
+    [aria-disabled='true'],
+    [data-disabled]
+  ):not([data-pending]) {
+  cursor: not-allowed;
+}
+
+/* Sheet cells: aligned digits, and a zero that is never read as the letter O. */
+@utility sheet-figures {
+  font-variant-numeric: tabular-nums slashed-zero;
+}
+
+/* Something opening below what opened it: the user menu. */
+@keyframes drop-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px) scale(0.98);
+  }
+}
+
+/* A popover or tooltip, growing from its trigger and fading in, and fading out. */
+@keyframes popover-in {
+  from {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+}
+
+@keyframes popover-out {
+  to {
+    opacity: 0;
+    transform: scale(0.98);
+  }
+}
+
+/* The navigation, sliding in from the left edge and back out. */
+@keyframes drawer-in {
+  from {
+    transform: translateX(-100%);
+  }
+}
+
+@keyframes drawer-out {
+  to {
+    transform: translateX(-100%);
+  }
+}
+
+/* A dialog's backdrop: it fades in and out, with its blur where it has one. */
+@keyframes scrim-in {
+  from {
+    background-color: transparent;
+    backdrop-filter: blur(0);
+  }
+}
+
+@keyframes scrim-out {
+  to {
+    background-color: transparent;
+    backdrop-filter: blur(0);
+  }
+}
+
+/* The panel of that overlay, growing in and shrinking out. */
+@keyframes overlay-panel-in {
+  from {
+    opacity: 0;
+    transform: scale(0.97);
+  }
+}
+
+@keyframes overlay-panel-out {
+  to {
+    opacity: 0;
+    transform: scale(0.97);
+  }
+}
+
+/*
+ * The sheet going full screen (useFullScreen): its box grows from its place to the window, or
+ * shrinks back, while the old and the new look cross-fade inside it. Both are drawn at their own
+ * size from the box's top left corner, so the header and the rows stay where they are and the
+ * box uncovers or covers the rest, instead of the text being stretched.
+ */
+::view-transition-group(*),
+::view-transition-old(*),
+::view-transition-new(*) {
+  animation-duration: 200ms;
+  animation-timing-function: var(--ease-standard);
+}
+
+::view-transition-group(full-screen) {
+  overflow: clip;
+}
+
+::view-transition-old(full-screen),
+::view-transition-new(full-screen) {
+  block-size: 100%;
+  object-fit: none;
+  object-position: left top;
+}
+
+/* The sheet's PDF view: pdf.js's text layer over the page canvas, transparent and selectable
+   (the rules pdf.js's own viewer uses, as in the Coordination Lab). */
+.sheet-pdf-page { --scale-round-x: 1px; --scale-round-y: 1px; }
+.sheet-pdf-page canvas { display: block; }
+.sheet-pdf-page .textLayer { position: absolute; inset: 0; overflow: clip; text-align: initial; line-height: 1; letter-spacing: normal; word-spacing: normal; text-size-adjust: none; transform-origin: 0 0; z-index: 2; --min-font-size: 1; --text-scale-factor: calc(var(--total-scale-factor) * var(--min-font-size)); --min-font-size-inv: calc(1 / var(--min-font-size)); }
+.sheet-pdf-page .textLayer :is(span, br) { color: transparent; position: absolute; white-space: pre; cursor: text; transform-origin: 0 0; user-select: text; }
+.sheet-pdf-page .textLayer > :not(.markedContent), .sheet-pdf-page .textLayer .markedContent span:not(.markedContent) { --font-height: 0; --scale-x: 1; --rotate: 0deg; font-size: calc(var(--text-scale-factor) * var(--font-height)); transform: rotate(var(--rotate)) scaleX(var(--scale-x)) scale(var(--min-font-size-inv)); }
+.sheet-pdf-page .textLayer .markedContent { display: contents; }
+.sheet-pdf-page .textLayer ::selection { background: rgb(14 107 107 / 0.3); }

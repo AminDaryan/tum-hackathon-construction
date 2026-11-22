@@ -1,0 +1,27 @@
+# Only what the image build needs: backend/ (pyproject, lock file, README, app) and frontend/.
+.git
+.github
+docs
+**/.venv
+**/venv
+**/node_modules
+**/__pycache__
+**/*.py[cod]
+**/.pytest_cache
+**/.ruff_cache
+**/.coverage
+**/htmlcov
+**/*.egg-info
+backend/tests
+backend/var
+var
+frontend/dist
+frontend/coverage
+frontend/playwright-report
+frontend/test-results
+**/*.sqlite3
+**/*.log
+.env
+.env.*
+**/.env
+**/.env.*

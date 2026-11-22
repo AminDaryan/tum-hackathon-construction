@@ -1,0 +1,42 @@
+# Hackathon preview on Fly.io: one small machine that suspends when idle, and the whole site
+# behind the gate page (TWB_GATE_PHRASE, app.api.gate). /data (SQLite, uploads, project files)
+# is the 1 GB volume twb_data, kept across deploys, with daily snapshots kept 7 days. One
+# machine only: the volume belongs to one host, and SQLite to one server process.
+#
+#   flyctl volumes create twb_data -r fra -s 1      (once)
+#   flyctl volumes snapshots create <volume id>     (before a deploy that upgrades the schema)
+#
+#   flyctl deploy
+
+app = "twb-hackathon"
+primary_region = "fra"
+kill_timeout = 30
+
+[build]
+  dockerfile = "Dockerfile"
+
+[build.args]
+  # The Claude bill review needs the anthropic package; it uses the assistant's key.
+  EXTRAS = "llm"
+
+[env]
+  TWB_ALLOWED_HOSTS = '["twb-hackathon.fly.dev"]'
+  TWB_CORS_ORIGINS = '["https://twb-hackathon.fly.dev"]'
+  TWB_GATE_PHRASE = "contruction-hackathon-26"
+  TWB_LOGGING__FORMAT = "json"
+
+[http_service]
+  internal_port = 8000
+  force_https = true
+  auto_stop_machines = "suspend"
+  auto_start_machines = true
+  min_machines_running = 0
+
+[[mounts]]
+  source = "twb_data"
+  destination = "/data"
+  snapshot_retention = 7
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "512mb"

@@ -1,0 +1,171 @@
+# Every branch must pass these checks before merging. The backend installs from the lock file,
+# so CI and every developer machine test the same dependency versions. Python, pip, Node.js and
+# PostgreSQL are the exact versions SYSTEM_REQUIREMENTS.md lists
+# (backend/tests/unit/test_system_requirements.py fails when they differ).
+#
+# Triggers: pushes to main, every pull request (so a push to any other branch is checked
+# through its pull request, whatever the branch is called), and manual runs on any branch.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# A newer push cancels the older run of the same branch or pull request, on main too: the
+# newest commit of main runs every check, and main runs no longer queue behind each other.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13.18"
+      - name: Install (pinned by requirements.lock.txt)
+        run: |
+          python -m pip install pip==26.3
+          python -m pip install -c requirements.lock.txt -e ".[dev]"
+      - name: Lint
+        run: |
+          python -m ruff check .
+          python -m ruff format --check .
+      # Strict mypy over app/ ([tool.mypy] in pyproject.toml; the stubs are in the dev extra).
+      - name: Type check
+        run: python -m mypy
+      # Line and branch coverage of app/ is reported in the log. The gate sits just below the
+      # 94.9 % measured when it was introduced (a little room for thread timing); raise it as
+      # coverage grows. The tests marked `performance` time the code against limits from the
+      # brief; coverage tracing slows the code several times over, so they run in their own
+      # step without it.
+      - name: Tests with coverage
+        run: python -m pytest -q -m "not performance" --cov --cov-report=term --cov-fail-under=94.5
+      - name: Performance tests (without coverage)
+        run: python -m pytest -q -m performance
+
+  backend-windows:
+    # Python 3.11 is supported on Windows only: there it gets numpy 2.4.6, whose Windows wheel
+    # bundles the same libraries as numpy 2.5.5's, while its Linux wheel bundles libquadmath
+    # (LGPL). Type check (numpy 2.4 has other stubs) and tests. Lint, coverage and the timing
+    # tests run in the job above only (a Windows runner's timings would only add noise).
+    runs-on: windows-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11.9"
+      - name: Install (pinned by requirements.lock.txt)
+        run: |
+          python -m pip install pip==26.3
+          python -m pip install -c requirements.lock.txt -e ".[dev]"
+      - name: Type check
+        run: python -m mypy
+      - name: Tests
+        run: python -m pytest -q -m "not performance"
+
+  postgres:
+    # The persistence, migration and API tests again, against a real PostgreSQL server
+    # (TWB_TEST_DATABASE_URL; each test empties the database first).
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16.16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: twb_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d twb_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+    env:
+      TWB_TEST_DATABASE_URL: postgresql+pg8000://postgres:postgres@localhost:5432/twb_test
+      TWB_TEST_REQUIRE_POSTGRESQL: "1"  # a missing URL fails the job instead of skipping
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13.18"
+      - name: Install with the postgres extra (pinned by requirements.lock.txt)
+        run: |
+          python -m pip install pip==26.3
+          python -m pip install -c requirements.lock.txt -e ".[dev,postgres]"
+      - name: PostgreSQL-enabled tests
+        run: python -m pytest -q -k postgresql tests/unit/repositories tests/integration
+
+  frontend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24.22.3"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npx vitest run
+      - run: npm run build
+
+  e2e:
+    # Browser tests of the built interface against a real backend: "npm run test:e2e" starts
+    # the backend (from backend/.venv, also first on PATH) and the preview server itself.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13.18"
+      - name: Backend virtual environment (pinned by requirements.lock.txt)
+        working-directory: backend
+        run: |
+          python -m venv .venv
+          .venv/bin/python -m pip install pip==26.3
+          .venv/bin/python -m pip install -c requirements.lock.txt -e ".[dev]"
+          echo "$GITHUB_WORKSPACE/backend/.venv/bin" >> "$GITHUB_PATH"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24.22.3"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install the interface and the Playwright browser
+        working-directory: frontend
+        run: |
+          npm ci
+          npx playwright install --with-deps chromium
+      - name: End-to-end tests
+        working-directory: frontend
+        env:
+          TWB_E2E_OUTPUT_DIR: ${{ runner.temp }}/twb-e2e-results
+        run: npm run test:e2e
+      - name: Keep the Playwright output of a failed run
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-output
+          path: ${{ runner.temp }}/twb-e2e-results
+          if-no-files-found: ignore
+          retention-days: 7

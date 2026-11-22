@@ -1,0 +1,70 @@
+# Default currency vocabulary, loaded for every domain profile (app/profiles/currency.py). A
+# profile adds or overrides aliases with its own `currency_aliases`; everything else here is
+# shared. Tokens are compared after Unicode NFKC, outer whitespace removed and case folding.
+# Only explicit markers are evidence: an unmarked amount is never assumed to be in a currency.
+
+# Written tokens that name exactly one ISO 4217 currency. Words of 2 to 5 letters (with an
+# optional trailing dot) are found in free text and next to numbers; other tokens only when
+# they are listed under `symbols`.
+aliases:
+  "€": EUR
+  eur: EUR
+  euro: EUR
+  euros: EUR
+  us$: USD
+  usd: USD
+  "£": GBP
+  gbp: GBP
+  chf: CHF
+  fr.: CHF
+  jpy: JPY
+  cny: CNY
+  rmb: CNY
+  nzd: NZD
+  sgd: SGD
+  hkd: HKD
+  pln: PLN
+  zł: PLN
+  czk: CZK
+  kč: CZK
+  sek: SEK
+  nok: NOK
+  dkk: DKK
+  "₺": TRY
+  cad: CAD
+  aud: AUD
+
+# Symbols recognized as currency markers in free text (headers) and before or after a number.
+# Each is an alias or one of the ambiguous symbols; an ambiguous one marks a currency without
+# deciding it.
+symbols: ["us$", "€", "$", "£", "¥", "₺"]
+
+# Symbols that stand for several currencies ("$": USD, CAD, AUD, NZD, SGD, MXN, ...; "¥": JPY
+# or CNY; "R$" is recognized only in number formats). They are never resolved from text; in
+# an Excel number format they resolve only through its locale tag, e.g. [$$-C09]. Excel's
+# built-in "$" formats carry no locale and stay unknown.
+ambiguous_symbols: ["$", "¥", "r$"]
+
+# Windows locale ids (hex, lower case, without leading zeros) of Excel currency tags, and the
+# currency an ambiguous symbol means under them.
+locale_currencies:
+  "409": USD  # en-US
+  "1009": CAD  # en-CA
+  "c0c": CAD  # fr-CA
+  "c09": AUD  # en-AU
+  "1409": NZD  # en-NZ
+  "4809": SGD  # en-SG
+  "1004": SGD  # zh-SG
+  "3c09": HKD  # en-HK
+  "c04": HKD  # zh-HK
+  "80a": MXN  # es-MX
+  "416": BRL  # pt-BR (R$)
+  "2c0a": ARS  # es-AR
+  "340a": CLP  # es-CL
+  "240a": COP  # es-CO
+  "804": CNY  # zh-CN
+  "411": JPY  # ja-JP
+
+# Aliases that mark a number format's currency wherever they stand in it (outside locale tags
+# and quoted literals), tried in this order.
+number_format_symbols: ["€", "£", "₺"]

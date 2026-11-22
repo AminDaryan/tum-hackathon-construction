@@ -1,0 +1,245 @@
+# "If the bill has A, the same scope should also have B." Version 0.3 (after second review 2026-11-20).
+# Version 0.4 (2026-11-21): a trigger word after a negation ("kein Grundwasser") does not
+# trigger; D09 triggers at any depth when the soil is said to be unstable; an expected word whose
+# clause says it is not decided yet (open_pattern) does not cover, and such an open value is a
+# stated gap (risk, semantic warning), not cannot_tell. Needs review by a person.
+# Version 0.5 (2026-11-21): a position that names the expected work but leaves it to another
+# document ("Bewehrung siehe Anlage A-01", document_pattern) triggers its rule whatever its
+# trigger words, and asks for that document: the run does not have it and does not guess it.
+# Version 0.6 (2026-11-21, the owner's decision "findings first, risk list second"): the rules
+# that repeated a check of the issue register are gone, so one issue is listed once. D05 (dig ->
+# backfill) and D30 (disposal class) are left to domain.boq_companion_work
+# (trench_without_backfill) and domain.boq_required_attributes (disposal_waste_class); D08 no
+# longer reads pressure or drinking-water pipes, which pipe_without_pressure_test checks. Their
+# findings keep the risk types and questions (findings.yaml).
+# Written from general construction knowledge, NOT mined from the test projects (P1, P6).
+#
+# Matching: case-insensitive. `if_any`, `and_any`, `expect_any`, `unless` are word stems;
+# `*_pattern` fields are regular expressions with word boundaries. `expect_label` names B for
+# titles and questions (the stems are word fragments and are never shown).
+# scope: where B is searched.
+#   component = same item and items naming the same component (e.g. same wall, same pipe system)
+#   section   = same section (title) of the bill
+#   project   = all trades of the project (only where a separate trade usually does B)
+# on_missing: what a miss means. VOB/A § 7b lets work that is part of the contract duties go
+#   without its own item, so a miss is usually a question, not a proven omission.
+#   question = cannot_tell + clarification question (default)
+#   signal   = risk, evidence class semantic_warning
+# Search scope and coverage are two separate decisions:
+#   scope   = where candidate B items are searched.
+#   link_by = what must be shared for a found B to COVER this A. A B found elsewhere in the
+#             project covers A only when it names the same component key (building, storey,
+#             axis, room, wall or pipe system, position reference). Without a shared key the
+#             result is cannot_tell ("found in another part, not linked"), never covered.
+version: 0.6
+defaults:
+  scope: section
+  negations_any: [kein, keine, keinen, keinem, keiner, keines, ohne]
+  document_pattern: '\b(?:siehe|s\.|gem(?:äß|\.)|laut|lt\.|nach|entsprechend)\s+(?:(?:der|dem|den|die|beiliegende\w*|beigefügte\w*)\s+)?(?P<document>(?:anlage|anhang|beilage|\w*plan|statik|statische\w*\s+berechnung|\w*gutachten|zeichnung|detailzeichnung|datenblatt)\b(?:\s+(?:nr\.?\s*)?[a-z]{0,4}[-./]?\d[\w./-]*)?)'
+  link_by: [same_item, same_component_key, explicit_reference]
+  on_missing: question
+rules:
+  - id: D01
+    risk_type: R001
+    context: [building]
+    if_any: [kellerwand, bodenplatte, untergeschoss, erdberührt]
+    expect_any: [abdicht, bitumendick, kmb, weisse wanne, wu-beton, wasserundurchlässig]
+    expect_label: "waterproofing (Abdichtung, WU-Beton)"
+    unless: ["abdichtung durch", "abdichtung wird von", "wu-konstruktion"]
+    scope: project
+    on_missing: signal
+  - id: D02
+    risk_type: R002
+    if_any: [stahlbeton]
+    expect_any: [bewehrung, betonstahl, b500, betonstahlmatte]
+    expect_label: "reinforcement (Bewehrung, Betonstahl)"
+    unless: ["einschl. bewehrung", "inkl. bewehrung", "fertigteil", "unbewehrt"]
+    scope: section
+  - id: D03
+    risk_type: R003
+    if_any: [ortbeton, stahlbeton]
+    expect_any: [schalung, schalen]
+    expect_label: "formwork (Schalung)"
+    unless: ["einschl. schalung", "inkl. schalung", "gegen erdreich", "fertigteil", "filigran", "schalungsfrei"]
+    scope: section
+  - id: D04
+    risk_type: R004
+    if_any: [fundament, bodenplatte, rohrgraben, schacht herstellen, leitungsgraben]
+    expect_any: [aushub, ausheben, boden lösen, graben herstellen, baugrube]
+    expect_label: "excavation (Aushub, Baugrube)"
+    scope: section
+  - id: D06
+    risk_type: R006
+    if_any: [aushub, ausheben, abbruch, aufbruch]
+    expect_any: [abfuhr, abfahren, entsorg, deponie, verwert, laden und transport]
+    expect_label: "removal and disposal (Abfuhr, Entsorgung)"
+    unless: ["verbleibt auf", "seitlich lagern und wiederverwenden"]
+    scope: section
+  - id: D07
+    risk_type: R009
+    if_pattern: '\b(EI|REI|EI2)\s?\d{2,3}\b|\bF\s?(30|60|90|120)\b|\bbrandwand\b|\bfeuerbeständig\b|\bfeuerhemmend\b'
+    and_any: [durchführung, durchdringung, kernbohrung, wanddurchbruch, deckendurchbruch]
+    expect_any: [brandschott, abschottung, brandschutzmanschette, kabelschott, rohrschott]
+    expect_label: "fire stopping of the openings (Brandschott, Abschottung)"
+    scope: project
+    on_missing: signal
+    harm: safety
+  - id: D08
+    risk_type: R010
+    # Pressure and drinking-water pipes: domain.boq_companion_work (pipe_without_pressure_test).
+    if_any: [heizungsanlage, lüftungsanlage, sprinkleranlage]
+    expect_any: [druckprüfung, dichtheitsprüfung, dichtigkeitsprüfung, inbetriebnahme, messprotokoll, desinfektion, spülen]
+    expect_label: "pressure test and commissioning (Druckprüfung, Inbetriebnahme)"
+    scope: component
+  - id: D09
+    risk_type: R011
+    if_any: [graben, baugrube]
+    depth_pattern: '(?:tiefe|tief)\D{0,15}?(\d+(?:[,.]\d+)?)(?:\s?(?:bis|-)\s?(\d+(?:[,.]\d+)?))?\s?m\b|(\d+(?:[,.]\d+)?)\s?m\s+tief'
+    depth_use: largest number matched
+    depth_over_m: "1.25"
+    # DIN 4124 lets a trench up to 1.25 m go without shoring only in stable soil.
+    regardless_of_depth_any: [nicht standsicher, nicht standfest, nicht ausreichend standsicher, nicht ausreichend standfest, instabil]
+    expect_any: [verbau, böschung, geböscht, grabenverbau, spundwand, kammerplatte]
+    expect_label: "shoring or sloping (Verbau, Böschung)"
+    scope: section
+    on_missing: question
+    harm: safety
+    note: "Depth over 1.25 m alone does not decide; soil, slope and loads (DGUV) need the site data. Ask, do not assert."
+  - id: D10
+    risk_type: R011
+    if_any: [grundwasser, schichtenwasser]
+    expect_any: [wasserhaltung, pumpe, absenk, brunnen, dränage]
+    expect_label: "dewatering (Wasserhaltung)"
+    scope: project
+  - id: D11
+    risk_type: R012
+    if_any: [anstrich, beschichtung, tapezier, spachtel, fliesen verlegen, belag verlegen]
+    expect_any: [untergrund vorbereiten, grundierung, grundieren, reinigen, schleifen, haftbrücke]
+    expect_label: "surface preparation (Untergrundvorbereitung, Grundierung)"
+    unless: ["untergrundvorbehandlung einschl", "inkl. grundierung"]
+    scope: component
+  - id: D12
+    risk_type: R013
+    if_any: [estrich, industrieboden]
+    expect_any: [fuge, dehnfuge, bewegungsfuge, randstreifen, randdämmstreifen]
+    expect_label: "joints and edge strips (Fugen, Randstreifen)"
+    scope: section
+  - id: D13
+    risk_type: R014
+    context: [building]
+    if_any: [drückendes wasser, schichtenwasser, stauwasser]
+    and_any: [kellerwand, untergeschoss, tiefgarage]
+    expect_any: [dränage, drainage, sickerschicht, grundleitung]
+    expect_label: "drainage (Dränage, Sickerschicht)"
+    unless: ["weisse wanne", "wu-beton"]
+    scope: project
+  - id: D14
+    risk_type: R015
+    if_any: [pumpe, lüftungsgerät, motor, antrieb, heizkessel]
+    expect_any: [elektrischer anschluss, anschließen, verkabel, anschlusskabel, el-anschluss]
+    expect_label: "electrical connection (Elektroanschluss)"
+    scope: project
+  - id: D15
+    risk_type: R011
+    if_any: [fassade, attika, außenwand, dachrand]
+    and_any: [montage, anbringen, verlegen, beschichtung]
+    expect_any: [gerüst, hubsteiger, arbeitsbühne, absturzsicherung, seitenschutz]
+    expect_label: "scaffolding or fall protection (Gerüst, Absturzsicherung)"
+    unless: ["gerüst wird gestellt", "gerüst durch"]
+    scope: project
+    harm: safety
+  - id: D16
+    risk_type: R072
+    if_any: [waschtisch, wc-anlage, dusche, spüle, urinal]
+    expect_any: [abwasser, ablauf, entwässerung, abflussrohr, ht-rohr, kg-rohr]
+    expect_label: "waste-water connection (Abwasser, Ablauf)"
+    scope: project
+  - id: D17
+    risk_type: R070
+    if_any: [klimagerät, lüftungsgerät, pumpe, ventilator]
+    expect_any: [schaltschrank, stromversorgung, elektroinstallation, zuleitung]
+    expect_label: "power supply (Stromversorgung, Zuleitung)"
+    scope: project
+  - id: D18
+    risk_type: R071
+    if_any: [lüftungsanlage, heizungsanlage, klimaanlage]
+    expect_any: [msr, gebäudeautomation, regelung, steuerung, glt]
+    expect_label: "controls (MSR, Regelung)"
+    scope: project
+  - id: D19
+    risk_type: R067
+    if_any: [rohrdurchführung, wanddurchführung, kernbohrung]
+    expect_any: [futterrohr, mantelrohr, hülse, ringraumdichtung]
+    expect_label: "sleeves and annular seals (Futterrohr, Ringraumdichtung)"
+    scope: component
+  - id: D20
+    risk_type: R073
+    if_any: [abgehängte decke, unterdecke, vorwand]
+    and_any: [ventil, armatur, absperr, brandschutzklappe]
+    expect_any: [revisionsöffnung, revisionsklappe, revisionstür]
+    expect_label: "access openings (Revisionsöffnung)"
+    scope: project
+  - id: D21
+    risk_type: R069
+    if_any: [pumpe, aggregat, behälter, tank, trafo]
+    weight_pattern: '(\d+(?:[,.]\d+)?)\s?(t|to|tonnen)\b'
+    expect_any: [fundament, sockel, konsole, unterkonstruktion]
+    expect_label: "base or substructure (Fundament, Unterkonstruktion)"
+    scope: project
+  - id: D22
+    risk_type: R101
+    if_any: [fertigteil, binder, treppenlauf]
+    expect_any: [kran, montage, versetzen, autokran, hebezeug]
+    expect_label: "lifting and setting (Kran, Montage)"
+    scope: component
+  - id: D23
+    risk_type: R110
+    context: [building, plant]
+    if_any: [anlage, installation]
+    expect_any: [bestandsplan, revisionsunterlage, dokumentation, wartungsanleitung, bedienungsanleitung]
+    expect_label: "as-built and operating documents (Bestandspläne, Wartungsanleitung)"
+    scope: project
+  - id: D24
+    risk_type: R092
+    context: [building]
+    if_any: [parkett, naturstein, fliesen, treppenbelag]
+    expect_any: [schutzabdeckung, abdecken, schützen, schutzvlies]
+    expect_label: "protection of finished surfaces (Schutzabdeckung)"
+    scope: project
+  - id: D25
+    risk_type: other
+    note: "Traffic safety on public roads; no matching challenge type (R091 is site access)."
+    if_any: [straße, fahrbahn, gehweg]
+    and_any: [aufbruch, graben, sperrung, arbeitsstelle]
+    expect_any: [verkehrssicherung, verkehrsführung, absperrung, beschilderung]
+    expect_label: "traffic safety (Verkehrssicherung, Absperrung)"
+    scope: project
+    harm: safety
+  - id: D26
+    risk_type: R104
+    if_any: [anschluss an bestehende, einbinden in bestehende, bestandsleitung]
+    expect_any: [außerbetriebnahme, absperren, umschluss, provisorium, notversorgung, abschaltung]
+    expect_label: "shutdown and temporary supply (Außerbetriebnahme, Provisorium)"
+    scope: section
+  - id: D27
+    risk_type: R097
+    if_any: [ortbeton, betonieren]
+    and_any: [belag, estrich, beschichtung]
+    expect_any: [nachbehandlung, nachbehandeln]
+    expect_label: "concrete curing (Nachbehandlung)"
+    scope: section
+    note: "Finds only a missing curing item; whether the time is enough needs the schedule."
+  - id: D28
+    risk_type: R098
+    if_any: [estrich]
+    and_any: [parkett, linoleum, pvc, kautschuk, teppich, fliesen]
+    expect_any: [cm-messung, restfeuchte, belegreife, feuchtemessung]
+    expect_label: "moisture test before laying (CM-Messung, Belegreife)"
+    scope: project
+    note: "Finds only a missing moisture check; drying time needs the schedule."
+  - id: D29
+    risk_type: R115
+    if_any: [entsorg, abfuhr, deponie]
+    expect_any: [deklaration, analyse, beprobung, avv, entsorgungsnachweis, zuordnungsklasse]
+    expect_label: "waste analysis and disposal records (Deklarationsanalyse, Entsorgungsnachweis)"
+    scope: section

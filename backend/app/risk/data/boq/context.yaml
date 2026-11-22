@@ -1,0 +1,33 @@
+# Project types and trades, read from the bill itself. Version 0.1 (2026-11-20, new; needs
+# review by a person). Written from general knowledge, not mined from the test projects.
+#
+# A project type counts when a section title names one of its words, or when at least
+# `min_share` of the positions do (words are substrings of the folded text). A rule with
+# `context: [building]` runs only when the project has that type. Setting the type by hand is
+# a later step (ProjectContext.source).
+version: "0.1"
+min_share: "0.05"
+project_types:
+  building: [hochbau, gebäude, geschoss, treppenhaus, rohbau, innenausbau, trockenbau, estrich, fliesen, malerarbeiten, bodenbelag, parkett, fassade, dachabdichtung, fenster, innentür]
+  pipeline: [rohrleitung, leitungsbau, leitungsgraben, rohrgraben, druckrohr, trinkwasserleitung, wasserleitung, fernleitung, kanalbau, abwasserleitung, hausanschluss]
+  road: [straßenbau, fahrbahn, asphalt, pflaster, gehweg, radweg, bordstein, frostschutzschicht, tragschicht]
+  plant: [maschinentechnik, anlagenbau, pumpwerk, pumpe, armatur, schaltanlage, verfahrenstechnik, aggregat, behälter]
+# Trades: shown in the report, read from section titles only.
+trades:
+  site_setup: [baustelleneinrichtung]
+  earthworks: [erdarbeit, erdbau, aushub, baugrube]
+  pipe_laying: [rohrleitung, rohrverlegung, leitungsbau, kanalbau]
+  concrete: [beton, stahlbeton]
+  masonry: [mauerarbeit, mauerwerk]
+  waterproofing: [abdichtung]
+  roofing: [dach]
+  drywall: [trockenbau]
+  screed: [estrich]
+  tiling: [fliesen]
+  painting: [maler, anstrich, beschichtung]
+  road_works: [straßenbau, verkehrsfläche, pflaster, asphalt]
+  mechanical: [maschinentechnik, anlagenbau, pumpe]
+  electrical: [elektro, kabel]
+  sanitary: [sanitär]
+  heating_ventilation: [heizung, lüftung, klima]
+  daywork: [stundenlohn]

@@ -1,0 +1,109 @@
+# Reason, question and action texts. Version 0.6 (2026-11-21): adds the question of a reference
+# to a position this bill does not have; plan steps by category (a price comparison is reviewed
+# internally, a comparison of descriptions is asked) and an internal check of a confirmed
+# calculation error. A value that may be read wrongly is checked against the original first;
+# whether the original settles it is not in the fields given, so no question is added. Version 0.5 (2026-11-21): adds `plan`, the summary and
+# next steps for a reminder given from outside (its facts, state and method), drafted without
+# the evaluation's answers. Version 0.4 (2026-11-20): version 0.3 (after review) plus
+# the clarification questions of each check. {slots} are filled by code from stored data; a
+# local model may only reword, never add numbers.
+#
+# Wording follows the evidence, not the category:
+#   {verb} = "is" for confirmed_rule_violation, "may be" for suspected_anomaly and
+#   semantic_warning, "could not be decided" for cannot_tell.
+#   {method_phrase} = how it was found, from the method that produced it (never assumed).
+#
+# Default action for a bidder under VOB/A: ask, wait for the client's answer, record the
+# internal assumption. Changing the tender documents can exclude the bid (VOB/A § 13, § 16),
+# so no template tells the bidder to change quantities, drop items or add reservations.
+version: "0.6"
+method_phrase:
+  invariant: "a rule check"
+  attribute_consistency: "comparing values stated for the same component"
+  peer_comparison: "comparing with similar positions"
+  dependency: "a scope dependency rule"
+  vagueness: "a wording check"
+  guided_llm: "the local language model (unverified hint)"
+default_action: "Submit a clarification question to the client, wait for the formal answer or a revised tender, and record the internal costing assumption until then. Whether the formal bid changes depends on the tender conditions."
+categories:
+  missing_scope:
+    reason: "Found by {method_phrase}: the scope has {trigger_items} but no linked position for {expected} was found (searched {searched}). Work may also be included in other positions without its own item."
+    action: "Ask the client which position or trade covers {expected}; record in the internal costing whether it is assumed included."
+  quantity:
+    reason: "Found by {method_phrase}: {position} has {observed}; similar positions have {expected}. The quantity {verb} wrong; the bill alone cannot confirm it."
+    action: "Ask the client to confirm the quantity; note the deviation and its cost effect in the internal costing."
+  unclear_description:
+    reason: "Found by {method_phrase}: {position} says {quote} without {missing}."
+    action: "Ask the client to state {missing}; record the assumption used for costing."
+  contradiction:
+    reason: "Found by {method_phrase}: {position_a} states {value_a}, {position_b} states {value_b} for {component}."
+    action: "Ask the client which value applies; record which one the internal costing uses."
+  duplicate_scope:
+    reason: "Found by {method_phrase}: {position_a} and {position_b} may describe the same work ({similarity})."
+    action: "Ask the client whether both positions are intended; price the bill as issued and record the overlap."
+  trade_interface:
+    reason: "Found by {method_phrase}: {work} touches {other_trade}, and no responsible trade for {interface} was found."
+    action: "Ask the client who performs {interface}; record the assumed split in the internal costing."
+  pricing:
+    reason: "Found by {method_phrase}: {position}: {observed} differs from {expected} by {difference}."
+    action: "Check the own price before submission; if the tender's figures are affected, ask the client."
+  contract:
+    reason: "Found by {method_phrase}: {position} says {quote}, which leaves {open_point} open."
+    action: "Ask the client to define {open_point}; record the assumption and its cost effect."
+  schedule:
+    reason: "Found by {method_phrase}: {position} may need {dependency} first; timing cannot be checked without a schedule."
+    action: "Ask for the planned sequence; record waiting time or acceleration assumptions."
+  standards:
+    reason: "Found by {method_phrase}: {position} refers to {reference}, which {problem}."
+    action: "Ask which edition or proof is required; record the assumption."
+  data_quality:
+    reason: "Found by {method_phrase}: {position}: {observed}, expected {expected}."
+    action: "Ask the client for a corrected file or confirmation before pricing."
+  history:
+    reason: "Found by {method_phrase}: similar past work {pattern}."
+    action: "Review the past case; decide internally whether a risk allowance is needed."
+  other:
+    reason: "Found by {method_phrase}: {position}: {quote}."
+    action: "Check by hand. If confirmed, ask the client."
+# The question each check asks. Slots: {expected} the work looked for, {trigger_items} the
+# positions that need it, {candidates} positions or notes found but not tied to them,
+# {attribute}, {positions}, {value_a}, {value_b}.
+questions:
+  dependency_not_found: "Which position covers {expected} for {trigger_items}, or is it included in their unit prices?"
+  dependency_unlinked: "Is {expected} for {trigger_items} covered by {candidates}?"
+  dependency_separate: "The bill says {expected} is paid separately, but no position for it was found for {trigger_items}. Which position is meant?"
+  attribute_missing: "Please state the {attribute} for {positions}."
+  attribute_in_documents: "Please state the {attribute} for {positions}, or name the drawing or document that gives it."
+  consistency: "{positions} states {value_a} in the short text but {value_b} in the long text. Which {attribute} applies?"
+  reference: "{positions} refers to position {value_a}, which no position of this bill has. Which position or document is meant?"
+
+# A plan for a reminder given from outside the bill (state, evidence class, method, money and
+# facts with their sources): app.risk.explain.plan_for. The first `first` rule whose conditions
+# all hold names the main step, each matching `also` rule adds one. {fact} is the first fact,
+# verbatim (it may be in another language than these texts); {positions} the positions given.
+# No step changes the tender documents; no text names a standard, an amount or a probability.
+plan:
+  summary: "Found by {method_phrase}: {fact}"
+  first:
+    - {when: {state: [covered, not_applicable]}, kind: no_action}
+    - {when: {evidence_class: [extraction_uncertainty]}, kind: check_original_source}
+    - {when: {method: [invariant], evidence_class: [confirmed_rule_violation]}, kind: correct_internal_calculation}
+    # A comparison of the bidder's own prices is reviewed internally; one of descriptions (are
+    # two positions the same work?) only the client can settle, so it is asked (default step).
+    - {when: {method: [peer_comparison], category: [pricing]}, kind: internal_review}
+    - {when: {state: [cannot_tell], evidence_class: [needs_external_context]}, kind: request_document}
+    - {when: {}, kind: clarification_request}
+  also:
+    # A confirmed calculation error: the correction is checked by a second person first.
+    - {when: {method: [invariant], evidence_class: [confirmed_rule_violation]}, kind: internal_review}
+    - {when: {money: [estimate]}, kind: review_estimate}
+    - {when: {harm: [safety]}, kind: human_safety_review}
+  texts:
+    no_action: "No step needed for {positions}: the facts show it is settled. Keep the record."
+    check_original_source: "Compare {positions} with the original document before relying on the value read: {fact}"
+    correct_internal_calculation: "Correct the internal costing for {positions} to the value the calculation rule gives, and keep the bill as issued: {fact}"
+    internal_review: "Have {positions} checked internally by a second person (the value, its basis and comparable positions) before pricing: {fact}"
+    request_document: "Ask the client for the document {positions} depend on, and do not assume its content: {fact}"
+    clarification_request: "Ask the client to clarify {positions}, wait for the formal answer and record the internal costing assumption until then: {fact}"
+    review_estimate: "Check the estimate for {positions} against its stated basis before using it; it is a range, not a confirmed amount."
+    human_safety_review: "Have a person responsible for safety review {positions} before pricing."

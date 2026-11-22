@@ -1,0 +1,662 @@
+# Bill of Quantities (BoQ) profile for construction cost documents.
+# Covers common English (NRM/SMM-style "Item / Description / Qty / Unit / Rate / Amount") and
+# German Leistungsverzeichnis conventions ("OZ / Kurztext / Menge / ME / EP / GP").
+# Everything here is configuration: the validation core contains no construction terminology.
+#
+# Patterns are case-insensitive regular expressions applied to at most 500 characters of text
+# (app/core/patterns.py). Avoid two whitespace runs separated only by optional parts
+# ("\s*:?\s*"): write "\s*(?::\s*)?" instead. tests/unit/profiles/test_pattern_safety.py times
+# every pattern against adversarial text, and test_boq_classification.py pins label -> kind.
+profile_id: boq
+name: Bill of Quantities (construction)
+# 1.6.0 (2026-11-21): step B2 (1.4.0 on its branch, 1.5.0 after it merged main's 1.4.0, the
+# tender review checks) merged with main's 1.5.0 (the price date and price tax basis fields and
+# the two price context checks), so one version names each reading.
+# 1.7.0 (2026-11-21): every registered check runs on every run; the profile no longer adds
+# checks to a baseline plan or disables any (ADR 0010).
+# 1.8.0: explicit percent-qualified item-discount headers are mapped, exact-only.
+version: 1.8.0
+description: >-
+  Line items with quantity, unit, unit price and total, grouped into sections with subtotals
+  and a grand total. Header synonyms cover English and German BoQ layouts.
+locale:
+  decimal_separator: auto   # resolved per column from unambiguous values; never guessed
+  date_order: DMY
+  default_currency: null    # unmarked amounts stay "unknown currency"
+  # "(1.234,00)" can mean "not included in the total" in German LV printouts, or a negative
+  # amount in accounting: left unparsed (ambiguous) rather than guessed.
+  parenthesized_numbers: ambiguous
+
+fields:
+  - field_id: item_code
+    label: Item code
+    description: Position / item number (e.g. "01.02.0030" or "A.1.3").
+    data_type: text
+    role: identifier
+    required: true
+    header_synonyms:
+      - item no
+      - item number
+      - item code
+      - item ref
+      - reference no
+      - pos.-nr.
+      - pos nr
+      - pos.-nr
+      - position
+      - positionsnummer
+      - ordnungszahl
+      - lv-pos
+      - lv-position
+    exact_header_synonyms: [item, code, ref, pos, pos., oz, nr, 'no', 'no.']
+    constraints:
+      unique: true          # an item code identifies one line item
+      unique_scope: section # some layouts restart item letters per section or page
+  - field_id: description
+    label: Description
+    data_type: text
+    role: label
+    required: true
+    header_synonyms:
+      - description
+      - item description
+      - description of work
+      - description of works
+      - work description
+      - kurztext
+      - beschreibung
+      - leistungsbeschreibung
+      - bezeichnung
+      - leistung
+    exact_header_synonyms: [text]
+  - field_id: long_description
+    label: Long description
+    description: Full specification text (Langtext), when it has its own column.
+    data_type: text
+    role: label
+    header_synonyms:
+      - langtext
+      - long text
+      - detailed description
+      - specification
+    exact_header_synonyms: []
+  - field_id: quantity
+    label: Quantity
+    data_type: number
+    role: quantity
+    required: true
+    header_synonyms:
+      - qty
+      - qty.
+      - quantity
+      - quantities
+      - quant
+      - menge
+      - mengen
+      - lv-menge
+      - lv menge
+      - ausschreibungsmenge
+      - abrechnungsmenge
+      - ar-menge
+      - vertragsmenge
+      - vordersatz
+    # No minimum: credits and omissions are legitimately negative.
+    constraints:
+      allow_zero: true
+  - field_id: unit
+    label: Unit
+    data_type: text
+    role: unit
+    required: true
+    header_synonyms:
+      - unit
+      - units
+      - uom
+      - unit of measure
+      - unit of measurement
+      - einheit
+      - mengeneinheit
+    exact_header_synonyms: [me, eh, einh, einh.]
+  - field_id: unit_price
+    label: Unit price
+    data_type: number
+    role: monetary
+    required: true
+    header_synonyms:
+      - rate
+      - unit rate
+      - unit price
+      - price per unit
+      - ep
+      - einheitspreis
+      - e.p.
+      - preis je einheit
+      - preis/einheit
+    exact_header_synonyms: [price, preis]
+  - field_id: line_total
+    label: Line total
+    data_type: number
+    role: monetary
+    required: true
+    header_synonyms:
+      - amount
+      - total price
+      - line total
+      - extended price
+      - gp
+      - g.p.
+      - gesamtpreis
+      - gesamtbetrag
+      - betrag
+    exact_header_synonyms: [total, sum, summe]
+  # Unit price components (GAEB Preisanteile, up to six). No header maps them: a reviewer
+  # does (the GAEB import does not read them yet: UPComp1..6 in GAEB XML, record 30 in GAEB 90).
+  # A column mapped by a look-alike header would feed the check that the components add up to
+  # the unit price, a confirmed rule; bare words such as "Lohn", "Stoffe" or "Geräte" name other
+  # columns too, and a partly mapped breakdown sums short. Components 1 to 4 are the columns of
+  # the unit price breakdown in VHB Formblatt 223.
+  - field_id: unit_price_component_1
+    label: Unit price component 1
+    description: Share 1 of the unit price; in VHB Formblatt 223 the wages (Lohn).
+    data_type: number
+    role: monetary
+    match_headers: false
+  - field_id: unit_price_component_2
+    label: Unit price component 2
+    description: Share 2 of the unit price; in VHB Formblatt 223 the materials (Stoffe).
+    data_type: number
+    role: monetary
+    match_headers: false
+  - field_id: unit_price_component_3
+    label: Unit price component 3
+    description: Share 3 of the unit price; in VHB Formblatt 223 the plant (Geräte).
+    data_type: number
+    role: monetary
+    match_headers: false
+  - field_id: unit_price_component_4
+    label: Unit price component 4
+    description: Share 4 of the unit price; in VHB Formblatt 223 the other costs (Sonstiges).
+    data_type: number
+    role: monetary
+    match_headers: false
+  - field_id: unit_price_component_5
+    label: Unit price component 5
+    description: Share 5 of the unit price.
+    data_type: number
+    role: monetary
+    match_headers: false
+  - field_id: unit_price_component_6
+    label: Unit price component 6
+    description: Share 6 of the unit price.
+    data_type: number
+    role: monetary
+    match_headers: false
+  - field_id: currency
+    label: Currency
+    data_type: text
+    role: currency
+    header_synonyms:
+      - currency
+      - waehrung
+      - währung
+    exact_header_synonyms: [curr, cur]
+  - field_id: item_type
+    label: Item type
+    description: Optional column marking base, contingency, alternative or optional items.
+    data_type: text
+    role: category
+    header_synonyms:
+      - item type
+      - positionsart
+      - pos.-art
+      - pos art
+      - positionstyp
+    exact_header_synonyms: [type, art]
+  # Item discounts also occur in spreadsheets. Only explicit percentage headers map them;
+  # an unqualified Nachlass/Rabatt may be a lump-sum adjustment, not an item percentage.
+  - field_id: discount_percent
+    label: Item discount %
+    description: >-
+      Discount in percent on the item total (GAEB DiscountPcnt). The total is then
+      round(round(quantity x unit price, 2) x (1 - discount / 100), 2).
+    data_type: number
+    role: other
+    match_headers: exact
+    exact_header_synonyms: ["Nachlass %", "Positionsnachlass %", "item discount %"]
+  # Standard-text fields remain declared by GAEB or mapped by a reviewer only.
+  - field_id: standard_text_key
+    label: Standard text key
+    description: >-
+      Reference of the item's text in a standard text catalogue (STLB-Bau, StLB, StLK), as the
+      GAEB file states it. The catalogue texts themselves are licensed and not checked.
+    data_type: text
+    role: other
+    match_headers: false
+  - field_id: standard_text_catalog
+    label: Standard text catalogue
+    description: Catalogue name and version date of the standard text key, as the file states them.
+    data_type: text
+    role: other
+    match_headers: false
+  - field_id: price_date
+    label: Price date
+    description: Explicit ISO date (YYYY-MM-DD) of the quoted rate, not the upload date.
+    data_type: text
+    role: other
+    exact_header_synonyms: [preisstand, price date]
+  - field_id: price_tax_basis
+    label: Price tax basis
+    description: Explicit net or gross price basis; the history pilot accepts only net.
+    data_type: text
+    role: other
+    exact_header_synonyms: [preisart, price tax basis]
+
+row_classification:
+  label_fields: [description, item_code]
+  fallback_to_first_text_cell: true
+  item_value_fields: [quantity, unit_price, line_total]
+  # Codes in this field place sections in the hierarchy ("01" > "01.02" > "01.02.0010").
+  section_code_field: item_code
+  # Page running totals: never a scope total, so they are matched first.
+  carry_forward_patterns:
+    - '\b(carried\s+(forward|to\s+(collection|summary))|brought\s+forward|c/f|b/f|to\s+collection)\b'
+    - '^\s*(übertrag|uebertrag)\b'
+    - '\bsumme\s+(übertrag|uebertrag|seite)\b'
+    - '^\s*seitensumme\b'
+    - '\b(page\s+total|total\s+(this\s+)?page)\b'
+  # Gross wording wins over grand-total wording ("Gesamtsumme inkl. MwSt." is gross).
+  gross_total_patterns:
+    - '\b(gross\s+total|total\s+gross)\b'
+    - '\b(inkl\.?|inklusive|einschl\.?|einschlie(ß|ss)lich|incl\.?|including|inclusive(\s+of)?)\s*(?:\(\s*)?(\d+([.,]\d+)?\s*%\s*)?(der\s+)?(gesetzl(\.|ichen)?\s+)?(mwst|mw\.?(?:\s*-)?\s*st|ust|umsatzsteuer|mehrwertsteuer|vat|gst|tax)\b'
+    - '\bbrutto(summe|betrag|angebotssumme)?\b'
+  # Tax lines start with the tax wording (optionally "zzgl."/"plus"/"+" and a rate).
+  tax_patterns:
+    - '^\s*((\+|zzgl\.?|zuzüglich|add:?|plus)\s*)?(\d+([.,]\d+)?\s*%\s*)?(der\s+)?(gesetzl(\.|ichen)?\s+)?(mwst|mw\.?(?:\s*-)?\s*st|ust|umsatzsteuer|mehrwertsteuer|vat|gst|sales\s+tax)\b'
+    - '^\s*(summe|betrag)\s+(der\s+)?(mwst|mw\.?\s*st|ust|umsatzsteuer|mehrwertsteuer)\b'
+    - '^\s*total\s+(vat|gst|tax)\b'
+  grand_total_patterns:
+    - '^\s*(grand\s+total|total\s+net|net\s+total|total\s+\(net\)|tender\s+total|total\s+sum)\b'
+    - '^\s*(gesamtsumme|gesamtbetrag|endsumme|angebotssumme|auftragssumme)\b(?!\s+(titel|untertitel|los|abschnitt|gewerk|bereich|kapitel)\b)'
+    - '^\s*(summe|gesamt)\s+netto\b'
+    - '^\s*summe\s+(lv|leistungsverzeichnis|angebot|aller\s+titel|gesamt|zusammenstellung)\b'
+    - '^\s*(nettosumme|netto-?angebotssumme|nettobetrag|netto-?gesamtsumme)\b'
+    - '^\s*gesamt\s*(?::\s*)?$'
+    - '^\s*total\s*(?:\(\s*)?(excl\.?|excluding|exclusive\s+of|net\s+of|before)\s+(vat|gst|tax)\b'
+    - '^\s*(total\s+)?(contract|tender)\s+sum\b'
+    - '\bcarried\s+to\s+(the\s+)?form\s+of\s+tender\b'
+    - '^\s*(summe|gesamtsumme|total)\s+(nach|after|less|abzgl\.?|abzüglich)\s+(nachlass|rabatt|skonto|discount|rebate)\b'
+  # Discounts and surcharges on a total (rows with a quantity are items, not adjustments).
+  adjustment_patterns:
+    - '^\s*((abzgl\.?|abzüglich|-|less|minus|\./\.)\s*)?(\d+([.,]\d+)?\s*%\s*)?(preis)?(nachlass|rabatt|skonto|discount|rebate|abschlag|sicherheitseinbehalt)\b'
+    - '^\s*(zuschlag|surcharge|aufschlag)\b'
+  # A recap (Zusammenstellung, UK Collection/Summary) restates totals defined elsewhere.
+  summary_block_patterns:
+    - '^\s*(zusammenstellung|kostenzusammenstellung|zusammenfassung|collection|summary|general\s+summary|grand\s+summary|bill\s+summary)\b'
+  # The named group "code" links a subtotal to the section it closes.
+  subtotal_patterns:
+    - '^\s*sub[\s-]?total\b(\s+(of\s+)?(section|bill|part|title|group)?\s*(?P<code>\d+(\.\d+)*))?'
+    # A bare "Total" closes a section in most English BoQs; it is not assumed to be the grand total.
+    - '^\s*total\s*(?::\s*)?$'
+    - '^\s*(section|bill|part|trade|element|title|group)\s+total\b'
+    - '^\s*total\s+(of\s+|for\s+)?(section|bill|part|trade|element|title|group)\b(\s+no\.?)?\s*(?P<code>\d+(\.\d+)*)?'
+    - '^\s*(zwischensumme|titelsumme|untertitelsumme|teilsumme|lossumme|bereichssumme|abschnittssumme|gewerkesumme|kapitelsumme)\b(\s+(titel|los|abschnitt|gewerk|bereich|kapitel))?\s*(?P<code>\d+(\.\d+)*)?'
+    - '^\s*(summe|gesamtsumme|gesamt)\s+(titel|untertitel|los|abschnitt|gewerk|bereich|kapitel|oz)\b\.?\s*(?P<code>\d+(\.\d+)*)?'
+    - '^\s*summe\s+(?P<code>\d+(\.\d+)*)\b'
+    - '^\s*(section|bill|part|trade|element|title|group|titel|untertitel|los|abschnitt|gewerk|bereich|kapitel)\b(\s+no\.?)?\s*(?P<code>\d+(\.\d+)*)?.{0,80}?\b(total|summe|gesamt)\s*(?::\s*)?$'
+    - '^\s*summe\b'
+    - '^\s*\w+summe\b'
+    - '^.{1,80}?\b(total|summe|gesamt)\s*(?::\s*)?$'
+  # Levels apply when a heading carries no hierarchical code; codes nest by prefix.
+  section_patterns:
+    - pattern: '^\s*(los|bill|lot)\b(\s+no\.?)?\s*(?P<code>\d+(\.\d+)*)?'
+      level: 1
+    - pattern: '^\s*(titel|section|part|chapter|kapitel|gewerk|trade|hauptgruppe|abschnitt)\b(\s+no\.?)?\s*(?P<code>\d+(\.\d+)*)?'
+      level: 2
+    - pattern: '^\s*(untertitel|unterabschnitt|sub-?section|element|group|untergruppe|bereich)\b(\s+no\.?)?\s*(?P<code>\d+(\.\d+)*)?'
+      level: 3
+  # Whether an item (or every item of a section) is added into totals. First match wins, so
+  # specific rules come first. null = the document does not say; reconciliation then tests
+  # both readings and never confirms a violation that depends on the guess.
+  totals_rules:
+    # GAEB item kinds, as the GAEB import names them (app/ingestion/gaeb/flatten.py) and
+    # spreadsheet exports of GAEB bills write them in a Positionsart column, several joined by
+    # ", " ("Grundposition, Pauschalposition"). A kind that takes the position out of the total
+    # decides before every other rule, also next to "Bedarfsposition mit GB"; an item of an
+    # alternative group of categories is undecided, as the import reads it (it counts toward
+    # its own group only). The kinds that count and Stundenlohnarbeiten come last.
+    - rule_id: gaeb_alternative_group
+      pattern: '\bwahlposition\s*\(\s*wahlgruppe\s*\)'
+      applies_to: [category]
+      counts_toward_totals: null
+    - rule_id: gaeb_not_counted
+      pattern: '\b(wahlposition|entf(ä|ae)llt)\b'
+      applies_to: [category]
+      counts_toward_totals: false
+    # "mit GB" / "ohne GB": the contingency item is / is not part of the total (Gesamtbetrag).
+    - rule_id: contingency_with_total
+      pattern: '\b(bedarfs|eventual)(position(en)?|pos\.?)?\s+(mit\s+(gb|gesamtbetrag)|m\.?\s?gb)\b'
+      applies_to: [label, category, continuation_text]
+      counts_toward_totals: true
+    - rule_id: contingency_without_total
+      pattern: '\b(bedarfs|eventual)(position(en)?|pos\.?)?\s+(ohne\s+(gb|gesamtbetrag)|o\.?\s?gb)\b'
+      applies_to: [label, category, continuation_text]
+      counts_toward_totals: false
+    - rule_id: contingency_unspecified
+      pattern: '\b(bedarfs|eventual)(position(en)?|pos\.?)|\bnur\s+auf\s+(besondere\s+)?anordnung\b'
+      applies_to: [label, category, continuation_text]
+      counts_toward_totals: null
+    - rule_id: alternative_item
+      pattern: '\b(alternativ|wahl)(position(en)?|pos\.?)|^\s*(alternativ|wahl)\s+(zu|für)\b|^\s*(alternative|alt\.)\s*[:–-]'
+      applies_to: [label, category, continuation_text]
+      counts_toward_totals: false
+    - rule_id: rate_only
+      pattern: '\bnur\s+(ep|e\.p\.|einheitspreis)\b|\brate\s+only\b'
+      applies_to: [label, amount_text, category, continuation_text]
+      counts_toward_totals: false
+    - rule_id: excluded_from_total
+      pattern: '\b(ohne\s+(gp|gesamtpreis)|nicht\s+in\s+(der\s+)?(gesamt)?summe|not\s+included\s+in\s+(the\s+)?(tender\s+)?(total|sum)|excluded\s+from\s+(the\s+)?(tender\s+)?(total|sum))\b'
+      applies_to: [label, continuation_text]
+      counts_toward_totals: false
+    - rule_id: optional_item
+      pattern: '\b(optional|alternative)\s+items?\b'
+      applies_to: [label, continuation_text]
+      counts_toward_totals: false
+    - rule_id: option_unspecified
+      pattern: '^\s*option\s+\d+\s*:'
+      applies_to: [label]
+      counts_toward_totals: null
+    # Item-type column codes (GAEB-style): base, contingency with/without total, alternative.
+    - rule_id: type_base
+      pattern: '^\s*(g|n|grund|normal|base|basis|grundposition)\s*$'
+      applies_to: [category]
+      counts_toward_totals: true
+    - rule_id: type_contingency_with_total
+      pattern: '^\s*(bmgb|emgb|b\s*m\.?\s*gb)\s*$'
+      applies_to: [category]
+      counts_toward_totals: true
+    - rule_id: type_contingency_without_total
+      pattern: '^\s*(bogb|eogb|b\s*o\.?\s*gb)\s*$'
+      applies_to: [category]
+      counts_toward_totals: false
+    - rule_id: type_contingency
+      pattern: '^\s*(b|e|bedarf|eventual|bedarfsposition|eventualposition|contingency)\s*$'
+      applies_to: [category]
+      counts_toward_totals: null
+    - rule_id: type_alternative
+      pattern: '^\s*(a|alt\.?|w|wahl|alternativ|alternative|alternativposition|wahlposition|optional|option)\s*$'
+      applies_to: [category]
+      counts_toward_totals: false
+    # GAEB kinds (see gaeb_not_counted above). Whether hourly work is in the total, the kind
+    # alone does not say; "Bedarfsposition mit GB" or "ohne GB" next to it does.
+    - rule_id: gaeb_hourly_work
+      pattern: '\bstundenlohnarbeiten\b'
+      applies_to: [category]
+      counts_toward_totals: null
+    - rule_id: gaeb_counted
+      pattern: '\b(normal|grund|pauschal|zuschlags)position\b'
+      applies_to: [category]
+      counts_toward_totals: true
+
+# Conventional tokens that stand in numeric cells instead of numbers. They are kept as text with
+# a meaning (ParseStatus "marker"); no number is invented.
+value_markers:
+  - marker: nil
+    tokens: ['-', '--', '---', '–', '—', '-,--', '--,--', '-.--', 'nil', 'none']
+  - marker: included_elsewhere
+    tokens: [incl, incl., included, included elsewhere, inkl, inkl., inklusive, enthalten,
+             eingerechnet, in ep enthalten, in ep eingerechnet, in pos. enthalten]
+  - marker: not_applicable
+    tokens: [n/a, n.a., not applicable, entfällt, entfaellt, entf., k.a.]
+  - marker: by_others
+    tokens: [by others, by client, by employer, bauseits, bauseitig, durch ag, durch bauherr]
+  - marker: rate_only
+    tokens: [rate only, nur ep, nur e.p., nur einheitspreis]
+    roles: [monetary]
+  - marker: lump_sum
+    tokens: [psch, psch., pschl, pschl., pauschal, ls, l.s., lump sum, item, sum]
+    roles: [quantity]
+  # A spreadsheet bid's word for a position without a price (GAEB "NotOffered" in an X84):
+  # domain.boq_bid_prices reports it (not_offered).
+  - marker: not_offered
+    tokens: [nicht angeboten, not offered]
+    roles: [monetary]
+
+# Markers whose amount counts as zero in a total: the total is complete without a number.
+# Any other marker in a member's amount leaves the total's scope incomplete (a rate_only item
+# is no member: it does not count toward totals; lump_sum marks quantities only). A position
+# not offered adds nothing to the bid total, so the totals stay checkable.
+zero_contribution_markers: [nil, included_elsewhere, not_applicable, by_others, not_offered]
+
+# Words of yes/no fields (compared without outer spaces and case). Quoted: YAML would read
+# yes, no, y and n as booleans.
+boolean_words:
+  true_words: ["true", "yes", "ja", "wahr", "y", "j", "x"]
+  false_words: ["false", "no", "nein", "falsch", "n"]
+
+units:
+  - unit_id: m
+    label: metre
+    dimension: length
+    aliases: [m, lfm, lfdm, lfd m, lm, lin m, linear metre, linear meter, meter, metre, mtr,
+              rm, rmt, r.m., running metre, running meter]
+  - unit_id: m2
+    label: square metre
+    dimension: area
+    aliases: [m2, m², qm, sqm, sq m, square metre, square meter, quadratmeter]
+  - unit_id: m3
+    label: cubic metre
+    dimension: volume
+    aliases: [m3, m³, cbm, cu m, cubic metre, cubic meter, kubikmeter]
+  - unit_id: kg
+    label: kilogram
+    dimension: mass
+    aliases: [kg, kilogram, kilogramm, kgs]
+  - unit_id: t
+    label: tonne
+    dimension: mass
+    aliases: [t, to, tonne, tonnes, ton, mt]
+  - unit_id: l
+    label: litre
+    dimension: volume
+    aliases: [l, ltr, liter, litre]
+  - unit_id: pcs
+    label: piece
+    dimension: count
+    integer_quantities: true
+    aliases: [pcs, pc, piece, pieces, nr, 'no', nos, "no's", ea, each, stk, st, stck, stück,
+              stueck]
+  - unit_id: pr
+    label: pair
+    dimension: count
+    integer_quantities: true
+    aliases: [pr, pair, pairs, paar]
+  - unit_id: set
+    label: set
+    dimension: count
+    aliases: [set, sets, satz, garnitur]
+  - unit_id: h
+    label: hour
+    dimension: time
+    aliases: [h, hr, hrs, hour, hours, std, stunde, stunden]
+  - unit_id: d
+    label: day
+    dimension: time
+    aliases: [d, day, days, tag, tage, tg, at, kt, arbeitstag, arbeitstage, kalendertag,
+              kalendertage, wd]
+  - unit_id: wk
+    label: week
+    dimension: time
+    aliases: [wk, wks, week, weeks, wo, woche, wochen]
+  - unit_id: mo
+    label: month
+    dimension: time
+    aliases: [mo, month, months, mon, monat, monate]
+  - unit_id: ls
+    label: lump sum
+    dimension: lump_sum
+    aliases: [ls, lump sum, lumpsum, item, sum, l/s, lot, job, ps, prov sum, provisional sum,
+              pc sum, psch, pschl, pausch, pauschal, pauschale]
+  - unit_id: pct
+    label: percent
+    dimension: ratio
+    aliases: ['%', percent, prozent, v.h.]
+    quantity_factor: "0.01"   # 5 % of a base amount priced as the rate: total = 5 × 0.01 × rate
+  - unit_id: kwh
+    label: kilowatt hour
+    dimension: energy
+    aliases: [kwh]
+  # Rental and transport compounds ("m² × Woche" scaffolding, "St × Wo" hire, tonne-kilometres).
+  - unit_id: m2wk
+    label: square metre week
+    dimension: area_time
+    aliases: [m2wo, m²wo, m2xwo, m²xwo, m2/wo, m2xwoche, qmwo]
+  - unit_id: pcswk
+    label: piece week
+    dimension: count_time
+    aliases: [stwo, stxwo, stkxwo, stck/wo, st/wo, stückxwoche, stkwo]
+  - unit_id: m2cm
+    label: square metre centimetre
+    dimension: area_thickness
+    aliases: [m2cm, m²cm, m2xcm, m²xcm]
+  - unit_id: tkm
+    label: tonne kilometre
+    dimension: transport
+    aliases: [tkm, txkm]
+  - unit_id: m3km
+    label: cubic metre kilometre
+    dimension: transport
+    aliases: [m3km, m³km, m3xkm]
+
+currency_aliases: {}
+
+detector_defaults:
+  deterministic.line_total:
+    rounding: {decimal_places: 2, mode: half_up}
+    tolerance: {absolute: "0.01", relative: "0", per_term_absolute: "0"}
+    # In a mismatch the unit price prevails and the line total is corrected (VOB/A 2019
+    # § 16c (2) Nr. 1: "... so ist der Einheitspreis maßgebend"); a lump sum keeps its amount.
+    prevailing_value: unit_price
+    prevailing_rule: >-
+      VOB/A §16c (2) Nr. 1: if the total of a position differs from quantity × unit price, the
+      unit price prevails.
+    lump_sums:
+      unit_dimensions: [lump_sum]
+      text_field: item_type
+      text_pattern: '\bpauschalposition\b'
+      rule: >-
+        VOB-Stelle Rheinland-Pfalz, Arbeitsblatt Nr. 14 "Die Angebotswertung VOB/A § 16 - § 16d"
+        (October 2022): "Pauschalsumme gilt immer unverändert (ohne Rücksicht auf evtl.
+        Einheitspreise)", so the stated amount of a lump-sum position prevails.
+      # A GAEB bid (X84 or D84) carries no item flags and often no units: they are in the X83
+      # or D83 it answers.
+      undetermined_warnings: [gaeb_bid_without_tender]
+      undetermined_note: >-
+        This bid (GAEB X84 or D84) does not say which positions are lump sums (the tender it
+        answers does), so the lump-sum exception can only be checked with the tender.
+  # The GAEB import keeps the unit price components in the file but does not read them yet:
+  # UPComp1..6 in GAEB XML, record 30 in GAEB 90, which it counts under the label "Satzart 30
+  # (Einheitspreisanteile)". Its warning counts them, and the check then says that the file's
+  # unit price components were not checked.
+  deterministic.unit_price_components:
+    not_imported_warning: gaeb_elements_not_shown
+    not_imported_elements:
+      [UPComp1, UPComp2, UPComp3, UPComp4, UPComp5, UPComp6, "Satzart 30 (Einheitspreisanteile)"]
+  # Reported values are summed exactly, so there is no per-term drift allowance by default.
+  deterministic.subtotal:
+    tolerance: {absolute: "0.01", relative: "0", per_term_absolute: "0"}
+  deterministic.grand_total:
+    tolerance: {absolute: "0.01", relative: "0", per_term_absolute: "0"}
+  # A position repeated under a new OZ in the same Titel is a duplicate; the same text in Haus A
+  # and in Haus B is not. The OZ and the GAEB element id differ for every position, so they are
+  # not compared, and a bid without texts (GAEB X84 or D84) is not compared: equal quantities
+  # and prices alone do not make a copy. Relative wording ("wie vor, jedoch ...", "Zulage zu
+  # vorbeschriebener Position") means another position each time it is repeated, so such a
+  # position is compared together with the position it refers to.
+  deterministic.exact_duplicates:
+    ignore_fields: [item_code]
+    ignore_columns: ["GAEB-ID"]
+    scope: section
+    required_fields: [description]
+    relative_wording_fields: [description, long_description]
+    relative_wording_pattern: '\b(?:wie\s+(?:vor(?:her|stehend)?|zuvor|oben)|dto|dito|desgl|desgleichen|vorbeschrieben\w*|vorstehend\w*|vorgenannt\w*|(?:oben|zuvor|vorher)\s+(?:beschrieben|genannt)\w*|as\s+(?:before|above|previous)|ditto|(?:described|specified)\s+above)\b'
+  deterministic.required_values:
+    # An unpriced tender BoQ leaves rates and amounts empty on purpose: a column that is empty
+    # on every item row gets one table-level note, not one finding per row.
+    only_populated_columns: true
+    exemptions:
+      - rule_id: lump_sum_without_quantity
+        fields: [quantity, unit_price]
+        unit_dimensions: [lump_sum]
+      - rule_id: not_counted_without_total
+        fields: [line_total]
+        not_counted: true
+      # GAEB "Freie Menge" (QtyTBD): the quantity is left open on purpose, so is the total.
+      - rule_id: free_quantity
+        fields: [quantity, line_total]
+        text_field: item_type
+        text_pattern: '\bfreie\s+menge\b'
+      # GAEB "nicht angeboten" (NotOffered): domain.boq_bid_prices reports the position once
+      # (not_offered), so its empty price and total are not reported again here.
+      - rule_id: not_offered
+        fields: [unit_price, line_total]
+        text_field: item_type
+        text_pattern: '\bnicht\s+angeboten\b'
+      # The same in a spreadsheet: "nicht angeboten" written in the unit price (value marker
+      # not_offered), so the total is left blank and not_offered reports the position once.
+      - rule_id: not_offered_marker
+        fields: [line_total]
+        marker_field: unit_price
+        markers: [not_offered]
+      # Quantity 0: the position is not commissioned (a change-order list, Nachtrag items priced
+      # but not ordered), so its unit may stay empty.
+      - rule_id: zero_quantity
+        fields: [unit]
+        zero_fields: [quantity]
+  # Comparable positions of a correct bill are often priced 2 to 3 times apart. On the BoQ
+  # benchmark (seed 20261121) a floor of 3 cut findings on unplanted rows from 140 to 41 and
+  # lost 2 of 266 planted errors; 5 lost 6.
+  statistical.peer_price:
+    min_ratio: 3
+  domain.boq_bid_prices:
+    # 0,00 is its own rule (zero_price); a cent is the token price of a Mischkalkulation.
+    token_prices: ['0.01']
+    # The statutory minimum wage in Germany (Mindestlohngesetz), gross per hour: the lowest
+    # hourly labour rate (price_below_floor). Update both lines each January.
+    hourly_wage_floor: '13.90'
+    floor_currency: EUR
+    floor_source: statutory minimum wage (MiLoG), 13,90 EUR gross per hour since 2026-01-01
+    # A GAEB bid (X84 or D84) carries no item flags: the tender it answers says which positions
+    # count.
+    undetermined_count_warnings: [gaeb_bid_without_tender]
+    undetermined_count_note: >-
+      This bid (GAEB X84 or D84) does not say whether the position counts toward the total (the
+      tender it answers does), so check its kind in the tender.
+  deterministic.reference_integrity:
+    text_references:
+      - rule_id: german_position_reference
+        text_field: description
+        # "wie Pos. 01.02.0030", "siehe OZ 3.1.20", "s. Position 01.10", and the spaced
+        # segments of some bills, "Wie Position 5. 4. 17., jedoch ..." (compared as 05.04.0017)
+        pattern: '\b(?:wie|siehe|s\.|vgl\.)\s*(?:pos(?:ition)?|oz)\.?\s*(\d{1,4}(?:\.\s?\d{1,4}){1,4})\b'
+        target_field: item_code
+      - rule_id: english_item_reference
+        text_field: description
+        # "as item 3.2.1", "see item 02.010"
+        pattern: '\b(?:as|see|refer\s+to)\s+item\s+(\d{1,4}(?:\.\d{1,4}){1,4})\b'
+        target_field: item_code
+  deterministic.unit_compatibility:
+    description_rules:
+      - rule_id: hourly_work_in_time_units
+        description_pattern: '\b(stundenlohnarbeiten|stundenlohn|regiestunden?|daywork|day\s*work|labou?r\s+hours?)\b'
+        # Surcharges, materials and plant inside daywork blocks are priced otherwise.
+        exclude_pattern: '\b(zuschlag|stoffe?|stoffkosten|material|materials|gerät|geräte|plant|percentage|provisional|sum)\b'
+        allowed_dimensions: [time, lump_sum, ratio]
+        rationale: Hourly and daywork items are priced per unit of time.
+      - rule_id: site_setup_lump_sum_or_time
+        # Only the bare phrase: items inside a site-setup section (fencing per metre) are fine.
+        description_pattern: '^\s*(baustelleneinrichtung|site\s+(set[\s-]?up|establishment))(\s+(einrichten|vorhalten|räumen|komplett|complete))?\s*$'
+        allowed_dimensions: [lump_sum, time]
+        rationale: Site setup is priced as a lump sum or per period of time, not per quantity.
+    # Relative wording repeats word for word for different work ("wie vor, jedoch 30 cm"):
+    # such descriptions are not compared across units.
+    same_description_exclude_pattern: '^\s*(wie\s+vor|wie\s+vorher|dto\.?|dito|desgl\.?|as\s+before|ditto|as\s+above)\b'

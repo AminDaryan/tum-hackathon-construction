@@ -1,0 +1,100 @@
+# What ties two positions to the same part of the works, and how a sentence states that work
+# is included, paid separately or done by others. Version 0.1 (2026-11-20, new; needs review
+# by a person). Written from general knowledge, not mined from the test projects (P1, P6).
+#
+# Keys come from a position's short text and the titles of its sections. Sections that hold
+# every position of a table (the whole bill) give no key: every position shares them.
+# Two positions are LINKED when one names the other ("wie Pos. 01.02.0030"), or when they
+# share a key and name no other value of the same kind. The shared key must be a component,
+# system, room or axis, or both the building and the storey: one building or one storey alone
+# is too coarse to tie two positions together, unless the other position also names the
+# component word that made the first one relevant ("Abdichtung Kellerwand Haus A" for
+# "Kellerwand Haus A"); without any location key, that word alone ties them. A position that
+# names another
+# building, storey, room, axis, component or system is DIFFERENT. Anything else is NOT LINKED:
+# work found there is a candidate only, never coverage (cannot_tell).
+#
+# Patterns run on folded text: lower case, umlauts spelled out (ä -> ae), whitespace collapsed.
+# Umlauts written in a pattern are folded the same way when the table is loaded. The value of
+# a key is `value` with {1}, {2} replaced by the pattern's groups.
+version: "0.1"
+keys:
+  - kind: building
+    pattern: '\b(?:haus|gebäude|bauteil|bt|block|trakt|bauabschnitt)[ .-]{0,2}([a-z]\d{0,2}|\d{1,3}[a-z]?)\b'
+    value: "{1}"
+  - kind: storey
+    pattern: '\b(\d{1,2})\.?\s?(?:og|obergeschoss)\b'
+    value: "og{1}"
+  - kind: storey
+    pattern: '\b(?:eg|erdgeschoss)\b'
+    value: "eg"
+  - kind: storey
+    pattern: '\b(?:ug|untergeschoss|kellergeschoss|keller)\b'
+    value: "ug"
+  - kind: storey
+    pattern: '\b(?:dg|dachgeschoss)\b'
+    value: "dg"
+  - kind: room
+    pattern: '\b(?:raum|rm)\.?\s?(?:nr\.?\s?)?(\d{1,2}[.-]?\d{0,3}[a-z]?)\b'
+    value: "{1}"
+  - kind: axis
+    pattern: '\bachsen?\s?([a-z]{1,2}\d{0,2}(?:\s?[-/]\s?[a-z]{1,2}\d{0,2})?|\d{1,2}(?:\s?[-/]\s?\d{1,2})?)\b'
+    value: "{1}"
+  # A component needs an identifier with a letter or "Nr.": "Wand W12", "Fundament F1",
+  # "Schacht Nr. 3". "Wand 24 cm" names a thickness, not a component.
+  # Component and system words also match inside compounds ("Stahlbetonwand W12").
+  - kind: component
+    pattern: '(fundament|stütze|wand|unterzug|träger|schacht|bauwerk|bodenplatte|decke|treppe)[ .-]{0,2}([a-z]{1,2}\d{1,4}[a-z]?|nr\.?\s?\d{1,4})\b'
+    value: "{1}:{2}"
+  - kind: system
+    pattern: '(leitung|strang|system|anlage|heizkreis|kreis|netz)[ .-]{0,2}([a-z]{1,2}\d{1,3}|nr\.?\s?\d{1,3})\b'
+    value: "{1}:{2}"
+
+# Explicit references to another position; group 1 is its number.
+references:
+  - '\b(?:wie|siehe|s\.|vgl\.|zu|gem\.|gemäß|lt\.|laut|in|aus|nach|mit)\s?(?:pos(?:ition)?|oz)\.?\s?(\d{1,4}(?:\.\d{1,5}){1,4})\b'
+
+# How a clause around a found word reads. Checked in this order; the first list that matches
+# decides. Words are matched as substrings of the folded clause.
+included_phrases:
+  - nicht gesondert vergütet
+  - nicht gesondert abgerechnet
+  - ohne gesonderte vergütung
+  - einzurechnen
+  - einzukalkulieren
+  - eingerechnet
+  - mit abgegolten
+  - abgegolten
+  - ist enthalten
+  - sind enthalten
+  - mit enthalten
+  - enthalten sein
+  - einschließlich
+  - einschl.
+  - inkl.
+  - inklusive
+  - in die einheitspreise
+  - im einheitspreis
+  - in den einheitspreis
+separate_phrases:
+  - gesondert vergütet
+  - gesondert abgerechnet
+  - separat vergütet
+  - eigene position
+  - gesonderte position
+  - nach gesonderter position
+  - wird gesondert
+  - werden gesondert
+  - ohne
+  - nicht enthalten
+by_others_phrases:
+  - bauseits
+  - bauseitig
+  - durch den ag
+  - durch den auftraggeber
+  - vom auftraggeber
+  - durch andere
+  - durch dritte
+  - nicht im leistungsumfang
+# Short words that end with a dot but do not end a sentence.
+abbreviations: [inkl, einschl, ca, bzw, ggf, evtl, gem, lt, pos, nr, max, min, st, stk, sog, vgl, bspw, entspr, erf, mind, zzgl, abzgl, incl, z.b, u.a, usw, d.h, o.g, s.o, s.u, lfd, gew, dgl]

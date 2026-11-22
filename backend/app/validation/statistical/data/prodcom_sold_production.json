@@ -1,0 +1,200 @@
+{
+  "dataset": "DS-059367",
+  "title": "Sold production, exports and imports by PRODCOM List (CPA 2.2)",
+  "source_url": "https://ec.europa.eu/eurostat/databrowser/view/ds-059367/default/table",
+  "api_url": "https://ec.europa.eu/eurostat/api/comext/dissemination/statistics/1.0/data/DS-059367",
+  "publisher": "Eurostat",
+  "licence": "Eurostat reuse policy (Commission Decision 2011/833/EU): commercial and non-commercial reuse authorised provided the source is acknowledged; https://ec.europa.eu/eurostat/help/copyright-notice",
+  "reference_period": "2025",
+  "dataset_updated": "2026-11-10T11:00:00+0100",
+  "retrieved": "2026-11-21",
+  "products": {
+    "24106210": {
+      "label": "Hot-rolled concrete reinforcing bars",
+      "DE": {
+        "PRODVAL": 896914000,
+        "PRODQNT": 1892501000,
+        "QNTUNIT": "KG",
+        "PVALFLAG": null,
+        "PQNTFLAG": null
+      },
+      "EU27_2020": {
+        "PRODVAL": 7000000000,
+        "PRODQNT": 13318990126,
+        "QNTUNIT": "KG",
+        "PVALFLAG": ":R",
+        "PQNTFLAG": null
+      }
+    },
+    "24107110": {
+      "label": "U-sections of a web height of 80 mm or more (of iron or non-alloy steel)",
+      "DE": {
+        "PRODVAL": 203204000,
+        "PRODQNT": 235444000,
+        "QNTUNIT": "KG",
+        "PVALFLAG": null,
+        "PQNTFLAG": null
+      },
+      "EU27_2020": {
+        "PRODVAL": 630000000,
+        "PRODQNT": 820000000,
+        "QNTUNIT": "KG",
+        "PVALFLAG": ":R",
+        "PQNTFLAG": ":R"
+      }
+    },
+    "24107120": {
+      "label": "I-sections of a web height of 80 mm or more (of iron or non-alloy steel)",
+      "DE": {
+        "PRODVAL": null,
+        "PRODQNT": null,
+        "QNTUNIT": "KG",
+        "PVALFLAG": ":C",
+        "PQNTFLAG": ":C"
+      },
+      "EU27_2020": {
+        "PRODVAL": 1200000000,
+        "PRODQNT": 2100000000,
+        "QNTUNIT": "KG",
+        "PVALFLAG": ":R",
+        "PQNTFLAG": ":R"
+      }
+    },
+    "24107130": {
+      "label": "H-sections of a web height of 80 mm or more (of iron or non-alloy steel)",
+      "DE": {
+        "PRODVAL": 745727000,
+        "PRODQNT": 969818000,
+        "QNTUNIT": "KG",
+        "PVALFLAG": null,
+        "PQNTFLAG": null
+      },
+      "EU27_2020": {
+        "PRODVAL": 1647593000,
+        "PRODQNT": 2256284453,
+        "QNTUNIT": "KG",
+        "PVALFLAG": null,
+        "PQNTFLAG": null
+      }
+    },
+    "23122010": {
+      "label": "Multiple-walled insulating units of glass",
+      "DE": {
+        "PRODVAL": 1161184000,
+        "PRODQNT": 16690475,
+        "QNTUNIT": "M2",
+        "PVALFLAG": null,
+        "PQNTFLAG": null
+      },
+      "EU27_2020": {
+        "PRODVAL": 5100000000,
+        "PRODQNT": 98000000,
+        "QNTUNIT": "M2",
+        "PVALFLAG": ":R",
+        "PQNTFLAG": ":R"
+      }
+    },
+    "23121230": {
+      "label": "Toughened (tempered) safety glass, n.e.c.",
+      "DE": {
+        "PRODVAL": 238765000,
+        "PRODQNT": 5451671,
+        "QNTUNIT": "M2",
+        "PVALFLAG": null,
+        "PQNTFLAG": null
+      },
+      "EU27_2020": {
+        "PRODVAL": 1043421433,
+        "PRODQNT": 31539783,
+        "QNTUNIT": "M2",
+        "PVALFLAG": null,
+        "PQNTFLAG": null
+      }
+    },
+    "23121270": {
+      "label": "Laminated safety glass, n.e.c.",
+      "DE": {
+        "PRODVAL": 524737000,
+        "PRODQNT": 21210549,
+        "QNTUNIT": "M2",
+        "PVALFLAG": null,
+        "PQNTFLAG": null
+      },
+      "EU27_2020": {
+        "PRODVAL": 2225283107,
+        "PRODQNT": 96000000,
+        "QNTUNIT": "M2",
+        "PVALFLAG": ":E",
+        "PQNTFLAG": ":R"
+      }
+    },
+    "23621050": {
+      "label": "Boards, sheets, panels, tiles and similar articles of plaster or of compositions based on plaster, faced or reinforced with paper or paperboard only (excluding articles agglomerated with plaster, ornamented)",
+      "DE": {
+        "PRODVAL": 699129000,
+        "PRODQNT": 211324587,
+        "QNTUNIT": "M2",
+        "PVALFLAG": null,
+        "PQNTFLAG": null
+      },
+      "EU27_2020": {
+        "PRODVAL": 3500000000,
+        "PRODQNT": 1380000000,
+        "QNTUNIT": "M2",
+        "PVALFLAG": ":R",
+        "PQNTFLAG": ":R"
+      }
+    },
+    "23321110": {
+      "label": "Non-refractory clay building bricks (excluding of siliceous fossil meals or earths)",
+      "DE": {
+        "PRODVAL": 498115000,
+        "PRODQNT": 4064882,
+        "QNTUNIT": "M3",
+        "PVALFLAG": null,
+        "PQNTFLAG": null
+      },
+      "EU27_2020": {
+        "PRODVAL": 3420000000,
+        "PRODQNT": 42000000,
+        "QNTUNIT": "M3",
+        "PVALFLAG": ":R",
+        "PQNTFLAG": ":R"
+      }
+    },
+    "23991255": {
+      "label": "Articles of asphalt or of similar materials, e.g. petroleum bitumen or coal tar pitch, in rolls",
+      "DE": {
+        "PRODVAL": 603590000,
+        "PRODQNT": 154007806,
+        "QNTUNIT": "M2",
+        "PVALFLAG": null,
+        "PQNTFLAG": null
+      },
+      "EU27_2020": {
+        "PRODVAL": 2800000000,
+        "PRODQNT": 720000000,
+        "QNTUNIT": "M2",
+        "PVALFLAG": ":R",
+        "PQNTFLAG": ":R"
+      }
+    },
+    "22241119": {
+      "label": "Floor coverings of polymers of vinyl chloride whether or not self-adhesive, in rolls or in the form of tiles",
+      "DE": {
+        "PRODVAL": 159754000,
+        "PRODQNT": 37470827,
+        "QNTUNIT": "M2",
+        "PVALFLAG": null,
+        "PQNTFLAG": null
+      },
+      "EU27_2020": {
+        "PRODVAL": 900000000,
+        "PRODQNT": 150000000,
+        "QNTUNIT": "M2",
+        "PVALFLAG": ":R",
+        "PQNTFLAG": ":R"
+      }
+    }
+  }
+}
