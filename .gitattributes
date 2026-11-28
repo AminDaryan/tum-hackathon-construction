@@ -6,5 +6,7 @@
 *.png binary
 *.jpg binary
 *.woff2 binary
+*.mp4 binary
+*.gif binary
 # The official GAEB schemas are pinned by SHA-256: keep their bytes exactly.
 *.xsd binary
