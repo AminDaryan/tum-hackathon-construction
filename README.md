@@ -1,29 +1,128 @@
 # Desvio
 
-Desvio (repository: tabular-integrity-workbench) is a local workbench that checks tabular documents for errors and lets a reviewer confirm, dismiss
-or correct findings in-app, starting with construction Bills of Quantities (English BoQs and German
-Leistungsverzeichnisse). It reads XLSX and CSV files, GAEB bills (DA XML 3.1–3.3 and GAEB 90),
-printed bills in PDF (scans read by OCR) and Word documents (.docx: tables and item lists), turns them into a canonical table with every cell traced to its source
-(down to the PDF page and position), exports it to Excel, runs deterministic checks
-(arithmetic, totals and tax, units, duplicates, required values, references, currencies) and
-explains each finding with its evidence. Amounts are exact decimals; formulas and macros in documents are never executed; the
-checks use no paid service or LLM. An optional assistant, and a Claude review of one bill that a reviewer starts, call a hosted model API only when their key is set ([`docs/deployment.md`](docs/deployment.md#claude-bill-review)); the app works without them. Requirements: [`docs/product/brief.md`](docs/product/brief.md).
+Desvio helps a bidding team check a construction bill of quantities (BoQ, in German
+*Leistungsverzeichnis*) before the bid goes out. You put a tender's files into a project, Desvio
+checks every position of its bills, and your team reviews and fixes what it finds.
+
+[![Desvio demo video](docs/media/desvio-demo.gif)](docs/media/desvio-demo.mp4)
+
+## Features
+
+### Projects and users
+
+- **Create a project** for each bid, with a name and a description. The Projects page lists every
+  project with its status, and you can search and filter the list.
+- **Assign users** to a project, the people who check its bills. You can do this when you create
+  the project, or later in the projects table.
+- **Manage users** on the Users page. An administrator creates the accounts and gives each one a
+  role: a viewer reads, a reviewer also checks and edits, and an administrator also manages the
+  users. Each user signs in with a personal access token.
+
+### Files
+
+A project takes several files at once.
+
+| File | What Desvio does with it |
+| --- | --- |
+| **Bill of quantities** in GAEB DA XML 3.1 to 3.3 (`.x81`, `.x83`, `.x84`, `.x86`), GAEB 90 (`.d81`, `.d83`, `.d84`, `.d86`), Excel, CSV, PDF or Word | Reads it into a table and checks it. Scanned PDFs are read by OCR. |
+| **Reference**, such as the tender or another version of the bill | Compares the bill with it. |
+| **Supporting document**, such as a geotechnical report or a drawing | Shows it as it is. It is not checked. |
+| **3D model** (IFC), linked to a bill | Compares the bill's quantities with the model. |
+
+Every value in the table keeps a link to its source, down to the page and position in a PDF.
+
+### Checks
+
+**Validate project** runs every check on every bill in the background, and compares the bills
+with the project's references. The checks combine fixed rules, rules for German bills of
+quantities, price statistics and text comparison. They run on your machine and call no language
+model. Each finding is of one of six kinds:
+
+| Kind | Examples |
+| --- | --- |
+| **Error** | A line total that is not quantity × unit price. Totals or tax that do not add up. Units that do not fit. Missing values. Zero or token prices. Typing slips. |
+| **Inconsistency** | The bid differs from its tender. Identical positions have different unit prices. A position is there twice. A quantity differs from the 3D model. |
+| **Omission** | A gap in the numbering. Work that is paid separately, but no position pays for it. |
+| **Ambiguity** | An unclear or contradictory description. A missing material grade or standard. |
+| **Risk** | A unit price far from comparable positions. Contingency positions and hourly work. Clauses that put a cost or a risk on the bidder. |
+| **Change-order opportunity** | A condition stated as an assumption. A decision left until after the award. |
+
+A finding is a signal for the reviewer, not a proven fault. The
+[check catalogue](docs/architecture/detector-catalogue.md) lists every check, what it needs and
+where its limits are.
+
+### Review
+
+A bill opens in the Workspace: the bill as a table (or as its original PDF) on one side, its
+findings on the other. For each finding, Desvio shows:
+
+- **what is wrong**, and the positions it concerns;
+- **the evidence**: the cells, the calculation and the place in the source file;
+- **the money at stake**, when it can be calculated;
+- **what to do** about it.
+
+The reviewer decides on each finding: **Approve**, **Reject** or **Needs clarification**, with an
+optional note. Every decision is recorded with the name of the person who made it.
+
+Teams review together. A finding can be given to a teammate as a task with a type (Check, Fix,
+Ask client or Discussion) and a due date. Teammates discuss it in comments, and a mention with
+`@` sends a notification.
+
+### Fixes
+
+- **Correct the bill in the app.** Edit a cell in the table, or try a new unit price beside the
+  finding and save it.
+- **Every correction makes a new version of the bill.** The uploaded file is never changed, older
+  versions stay readable, and each changed cell is recorded.
+- **Validate again** to check the corrected version.
+- **Try prices before you change them.** The What-if tab raises or lowers the unit prices of a
+  group of materials by a percentage, or leaves positions out, and shows the bid total before
+  and after. The bill stays as it is.
+- **Add up quantities.** The Quantities tab groups positions with the same specification and
+  unit, adds up their quantities and exports them as CSV.
+
+### Language models (optional)
+
+Desvio works without a language model. You can turn on three kinds of help:
+
+| Help | What it does | Needs |
+| --- | --- | --- |
+| **Claude bill review** | A reviewer sends one bill to Claude. What Claude suspects joins the findings, marked as a suspicion. | An Anthropic API key |
+| **Desvio assistant** | Mention `@desvio` in a finding's comments. It explains the finding, drafts an email to the client or a bidder, sums up the discussion and suggests next steps. | An Anthropic API key |
+| **Local model** | Looks for more risks in a bill, and suggests the materials of priced positions. It runs on your machine. Its answers are still being evaluated. | [Ollama](https://ollama.com) with an allowed model |
+
+A language model never changes the bill and never decides a finding. Both stay with the reviewer.
+Without a key, nothing is sent to a model. To turn them on, see
+[Language model](docs/deployment.md#language-model) in the deployment guide.
+
+### Follow-ups
+
+Open questions become follow-ups of the project: a question to the client, to a subcontractor or
+to management, raised from a finding. Each has a status (draft, sent, answered or decided) and the
+day its answer is needed. Desvio drafts the email, and you send it from your own email app.
+
+### Reports and exports
+
+- **Reports** for a project or for one bill: a PDF report, an Excel workbook or a CSV file of
+  the findings, and a bid risk report as a PDF.
+- **The bill itself** as an Excel workbook, with your corrections.
+- **Data** for other tools: the findings as CSV or JSON, and the tables as a ZIP file.
+
+### Good to know
+
+- Amounts are exact decimals, never rounded floating-point numbers.
+- Formulas and macros in uploaded files are never run.
+- The checks use no paid service, and without a language model Desvio needs no network access.
+- The interface is in English and German, with light and dark appearance and settings for text
+  size, contrast and motion.
 
 ## Status
 
-Phase 1 and its first round of fixes are merged into `main` (pull request #3). Working and tested: ingestion with
-security checks, normalization, the 14 detectors, the REST API with optional sign-in and
-background runs, exports (CSV, ZIP, JSON, XLSX and questions markdown), in-app correction revisions and review-finish workflow, versioned database migrations, a synthetic
-benchmark, the web interface (served by the backend in the container image) and a browser
-end-to-end test. Since then: older GAEB formats, PDF bills with OCR for scans, an Excel export,
-and a tender review that every run on a bill now includes. The review looks for missing items,
-unclear descriptions, contradictions and typing slips, and reports them as signals for the
-reviewer ([ADR 0013](docs/decisions/0013-tender-review-checks.md)). The Projects page groups a bid's
-bills and references, accepts several files at once and validates the whole project. Each file
-still opens in the Workspace for its editable sheet, findings, review and exports. Not yet done: sorting, filtering and
-search in the sheet. Phase B,
-anomaly detection for bills of quantities, is approved and planned. See [progress](docs/handoff/PROGRESS.md), [known limitations](docs/known-limitations.md)
-and the plan in [`docs/handoff/NEXT_STEPS.md`](docs/handoff/NEXT_STEPS.md).
+Reading files, the checks, review, corrections, projects, follow-ups, reports and the web
+interface are in `main`. Not done yet: sorting, filtering and search in the bill's table. More
+detail is in [progress](docs/handoff/PROGRESS.md), [known limitations](docs/known-limitations.md)
+and the plan in [`docs/handoff/NEXT_STEPS.md`](docs/handoff/NEXT_STEPS.md). The requirements are
+in [`docs/product/brief.md`](docs/product/brief.md).
 
 ## Set up
 
@@ -62,6 +161,8 @@ API server (from `backend/`; data is stored in `backend/var/`):
 On Windows use `.\.venv\Scripts\uvicorn` instead. Interactive API documentation:
 `http://localhost:8000/docs`. The API is described in [`docs/api/rest-api.md`](docs/api/rest-api.md).
 
+Web interface (from `frontend/`): `npm run dev`, then open `http://localhost:5173`.
+
 ### Settings
 
 Settings are environment variables prefixed `TWB_`, with `__` for nesting (lists as JSON); the
@@ -75,7 +176,6 @@ Settings are environment variables prefixed `TWB_`, with `__` for nesting (lists
 | `TWB_AUTH__TOKENS` (sign-in) | `[]`: no sign-in |
 | `TWB_LOGGING__*` | `INFO`, `text` |
 | `TWB_FRONTEND_DIST_DIR` (serve the built interface) | unset |
-| `TWB_DEMO_PROJECT_DIR` (private sources for ready-made projects) | unset; `/app/demo-set` in the container |
 | `TWB_DEFAULT_PROFILE_ID` | `boq` |
 | `TWB_EXTRA_PROFILE_DIRS` (your own profile files) | `[]` |
 | `TWB_DETECTOR_PACKAGES` (your own detector packages) | the four built-in packages |
@@ -87,68 +187,15 @@ Settings are environment variables prefixed `TWB_`, with `__` for nesting (lists
 
 Profiles and detector packages of your own: [deployment guide](docs/deployment.md#your-own-profiles-and-detector-packages).
 
-Frontend (from `frontend/`): `npm run dev`, then open `http://localhost:5173`.
-
-### Bill-wide what-if scenarios
-
-Open a bill's **What-if** tab to compare all its tables without changing any BoQ cells.
-Choose a material group from the searchable picker, review and adjust the matched
-positions, then add a percentage unit-price rule. Multiple rules compound in order. Independently
-include or exclude positions to try optional items or swap alternatives. The view shows each
-position's before/after prices, contribution and change, plus the net bid comparison. It excludes
-tax and bill-level adjustments; ambiguous inclusion, incomplete prices, mixed currencies and
-inconsistent affected line totals prevent a reliable total rather than producing a partial one.
-
-Named scenario versions are saved **only in this browser**, bound to the source dataset revision.
-They are not shared server-side, project-wide aggregates or correction revisions. The reusable
-literal matcher is `frontend/src/features/materials/materialMatching.js`; it does not infer
-synonyms or classify materials automatically.
-Picker groups reuse `frontend/src/features/materials/materialQuantities.js`: identical specifications,
-section contexts and units, with optional or incomplete positions left to the manual controls.
-
-### Projects and ready-made demos
-
-For the presentation boundary and verified entry path, see
-[D-8: Kalkufer-only demo scope](tools/showcase/README.md#d-8-presentation-scope-option-1).
-
-Create a project, then choose or drop several bills in its compact Add files card. More options
-contains supporting-reference roles, IFC targets and existing-file reuse. The dashboard's counters
-filter files with pending findings, high/critical pending findings, or reading/check failures.
-Unvalidated projects show no finding count rather than a misleading zero. Existing uploads can
-belong to several projects without copying their originals.
-IFC uploads require an explicit target bill; its Properties tab keeps the existing design-model
-controls. Removing a file from a project does not delete its original or other memberships.
-
-Validate project runs the existing checks on every readable bill in the background and compares
-matching item numbers, descriptions and units across bills and references for quantity and unit
-price differences. These are review signals, not confirmed errors; alternative representations
-are never summed as project costs. Findings, corrections and exports remain traceable per file.
-Revalidate after editing a file or replacing an IFC. This is not a general semantic comparison
-of all text across unrelated trades.
-
-For the gated hackathon demo, `npm run dev` / `npm run build` prepares gitignored copies in
-`backend/demo-set`, outside the frontend's public directory. Set `TWB_DEMO_PROJECT_DIR` to its
-absolute path when starting the backend. The container does this automatically. The three demo
-projects of `backend/app/services/demo_projects.json`, and only their files, are copied there and
-imported server-side on first start, without browser uploads; progress and failures
-are visible in Projects. Subsequent starts resume incomplete imports and preserve ready projects.
-The generated IFC and planted-fault workbook are test material, not a supplied design or a real
-bid revision. Do not commit the demo sources or serve this deployment outside the hackathon gate.
-
-Synthetic benchmark (from `backend/`): `.venv/bin/python -m app.evaluation`; see
-[`docs/evaluation`](docs/evaluation/README.md).
-
 ## Deployment
 
 `docker compose up --build -d` builds one image (the API plus the built web interface, running
 as an unprivileged user) and serves it on `http://localhost:8000`, with the data in a volume.
 Optional Compose profiles add PostgreSQL (`--profile postgres`, with `TWB_DATABASE_URL` set) and
-an Ollama server reserved for a later phase. Before exposing it beyond your own machine, set
+an Ollama server for the optional local model. Before exposing it beyond your own machine, set
 `TWB_AUTH__TOKENS` and put a TLS proxy in front. Database upgrades: `python -m app.cli db
 current` and `db upgrade`. Configuration, authentication, logging, background runs, migrations,
-PostgreSQL and backups: [`docs/deployment.md`](docs/deployment.md). To check a new
-installation, upload [`samples/sample-bill.xlsx`](samples/README.md) and validate it: the run
-should report the eight findings listed in `samples/README.md`.
+PostgreSQL and backups: [`docs/deployment.md`](docs/deployment.md).
 
 ## Test
 
@@ -181,6 +228,7 @@ TWB_TEST_DATABASE_URL=postgresql+pg8000://postgres:postgres@localhost:5432/twb_t
 Interface, from `frontend/` (after `npm ci`):
 
 ```bash
+npm run typecheck
 npx vitest run
 npm run build
 npx playwright install chromium   # once, for the browser test
@@ -192,7 +240,10 @@ temporary data directory) and the preview server, and runs the browser tests in 
 backend gets only the settings the test sets: no `TWB_*` variable of your shell reaches it.
 Other ports, for example next to a running server: `TWB_E2E_BACKEND_PORT=8143
 TWB_E2E_PREVIEW_PORT=4193 npm run test:e2e`; the other options are described at the top of
-`frontend/playwright.config.js`.
+`frontend/playwright.config.ts`.
+
+Synthetic benchmark, from `backend/`: `.venv/bin/python -m app.evaluation`; see
+[`docs/evaluation`](docs/evaluation/README.md).
 
 ## Documentation
 
